@@ -30,8 +30,6 @@ export const login = asyncHandler(async (req: TypedRequest<{}, {}, LoginDTO>, re
     if (!user || !user.isActive) {
         return next(new ErrorResponse('Invalid credentials or inactive user', 401));
     }
-
-
     if (user.lockUntil && user.lockUntil > new Date()) {
         return next(new ErrorResponse('Account locked. Try again later.', 403));
     }

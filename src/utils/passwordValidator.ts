@@ -54,7 +54,7 @@ export const generateRandomPassword = (length: number) => {
 
 
  const createActivationLink = (token: Secret): string => {
-  return `${process.env.FRONTEND_URL}/activate-account?token=${token}`;
+  return `${process.env.FRONTEND_URL}/set-password?token=${token}`;
 };
 
 

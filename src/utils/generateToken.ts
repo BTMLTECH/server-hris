@@ -15,7 +15,7 @@ interface ITokenOptions {
   secure?: boolean;
 }
 
-
+const isProd = process.env.NODE_ENV === 'production';
 const accessTokenExpire = parseInt(process.env.ACCESS_TOKEN_EXPIRE || "1", 10); // Default to 1 day
 const refreshTokenExpire = parseInt(process.env.REFRESH_TOKEN_EXPIRE || "7", 10); // Default to 7 days
 const isProd = process.env.NODE_ENV === 'production';
@@ -25,8 +25,7 @@ export const accessTokenOption: ITokenOptions = {
   maxAge: accessTokenExpire * 24 * 60 * 60 * 1000, // 1 day in milliseconds
   httpOnly: true,
    sameSite: isProd ? "none": "lax",
-  secure: isProd,
-
+  secure: isProd
 };
 
 export const refreshTokenOption: ITokenOptions = {
@@ -34,8 +33,7 @@ export const refreshTokenOption: ITokenOptions = {
   maxAge: refreshTokenExpire * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   httpOnly: true,
   sameSite: isProd ? "none": "lax",
-  secure: isProd,
-
+  secure: isProd
 };
 
 export const sendToken =  async (user: IUser, statusCode: number, res: TypedResponse<AuthData | any>, next:NextFunction) => {

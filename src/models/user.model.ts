@@ -126,7 +126,7 @@ department: {
   trim: true,
 },
   company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
-  biometryId: { type: String, unique: true, sparse: true }, 
+  biometryId: { type: String, sparse: true }, 
   // resetRequests: { type: [String], default: [] },
   resetRequested: { type: Boolean, default: false },
   resetRequestedAt: Date,

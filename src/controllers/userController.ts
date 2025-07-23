@@ -105,46 +105,102 @@ export const getMyProfile = asyncHandler(async (
 
 
 
+// export const updateMyProfile = async (
+//   req: TypedRequest<{}, {}, Partial<IUser>>,  // Typing request body as Partial<IUser>
+//   res: TypedResponse<IUser>,
+//   next: NextFunction
+// ) => {
+//   try {
+//     let updates: Partial<IUser> = req.body;  
+//     const { user } = req; 
+
+    
+//     if (user?.role !== 'admin' && user?.role !== 'hr') {
+//       const allowedFields = ['workExperience', 'emergencyContact', 'address', 'profileImage', 'phoneNumber'];
+      
+//       const filteredUpdates = Object.keys(updates).reduce((acc, key) => {
+//         if (allowedFields.includes(key)) {
+//           acc[key as keyof Partial<IUser>] = updates[key as keyof Partial<IUser>];
+//         }
+//         return acc;
+//       }, {} as Partial<IUser>);
+
+//       if (Object.keys(filteredUpdates).length === 0) {
+//         return next(new ErrorResponse('You are not allowed to update any fields', 403));
+//       }
+
+
+//       updates = filteredUpdates;  
+//     }
+
+//     // Find the user and update their profile
+//     const userToUpdate = await User.findByIdAndUpdate(req.user?._id, updates, { new: true, runValidators: true }).select('-password');
+
+//     if (!userToUpdate) {
+//       return next(new ErrorResponse('User not found', 404));
+//     }
+
+//     res.status(200).json({ success: true, data: userToUpdate });
+//   } catch (err: any) {
+//     next(new ErrorResponse(err.message, 500));
+//   }
+// };
+
 export const updateMyProfile = async (
-  req: TypedRequest<{}, {}, Partial<IUser>>,  // Typing request body as Partial<IUser>
+  req: TypedRequest<{}, {}, Partial<IUser>>,
   res: TypedResponse<IUser>,
   next: NextFunction
 ) => {
   try {
-    let updates: Partial<IUser> = req.body;  
-    const { user } = req; 
+    const { user } = req;
+    let updates: Partial<IUser> = req.body;
 
-    
-    if (user?.role !== 'admin' && user?.role !== 'hr') {
-      const allowedFields = ['workExperience', 'emergencyContact', 'address', 'profileImage', 'phoneNumber'];
-      
-      const filteredUpdates = Object.keys(updates).reduce((acc, key) => {
+    const isAdminOrHR = user?.role === 'admin' || user?.role === 'hr';
+    const targetUserId = isAdminOrHR && updates._id ? updates._id : user?._id;
+
+    // Don't allow updating email
+    if ('email' in updates) {
+      delete updates.email;
+    }
+
+    // Restrict regular users to certain fields only
+    if (!isAdminOrHR) {
+      const allowedFields = [
+        'workExperience',
+        'emergencyContact',
+        'address',
+        'profileImage',
+        'phoneNumber',
+      ];
+
+      updates = Object.keys(updates).reduce((acc, key) => {
         if (allowedFields.includes(key)) {
           acc[key as keyof Partial<IUser>] = updates[key as keyof Partial<IUser>];
         }
         return acc;
       }, {} as Partial<IUser>);
 
-      if (Object.keys(filteredUpdates).length === 0) {
+      if (Object.keys(updates).length === 0) {
         return next(new ErrorResponse('You are not allowed to update any fields', 403));
       }
-
-
-      updates = filteredUpdates;  
     }
 
-    // Find the user and update their profile
-    const userToUpdate = await User.findByIdAndUpdate(req.user?._id, updates, { new: true, runValidators: true }).select('-password');
+    const updatedUser = await User.findByIdAndUpdate(targetUserId, updates, {
+      new: true,
+      runValidators: true,
+    }).select('-password');
 
-    if (!userToUpdate) {
+    if (!updatedUser) {
       return next(new ErrorResponse('User not found', 404));
     }
 
-    res.status(200).json({ success: true, data: userToUpdate });
+    res.status(200).json({ success: true, data: updatedUser });
   } catch (err: any) {
-    next(new ErrorResponse(err.message, 500));
+    next(new ErrorResponse(err.message || 'Server error', 500));
   }
 };
+
+
 
 
 // Upload Profile Picture

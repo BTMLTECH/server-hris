@@ -39,6 +39,7 @@ email: string;
 newPassword: string;
  passwordConfig: PasswordConfig;
  temporaryPassword: string;
+ token: string
 }
 
 export interface SetupPasswordQuery {
@@ -124,10 +125,10 @@ export interface RegisterAdminDto {
 
 // Used for employee setup
 export interface SetPasswordDto {
-  email: string;
-  newPassword: string;
+  newPasswored: string;
   passwordConfig: PasswordConfig;
-  temporaryPassword : string
+  temporaryPassword : string;
+  token: string
 }
 
 export interface IActivationCode {

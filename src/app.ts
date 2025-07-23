@@ -21,7 +21,8 @@ const app = express();
 app.use(express.json()); 
 app.use(cookieParser());
 
-const allowedOrigins = ['http://localhost:8081', 'https://staging-hris.btmlimited.net'];
+const allowedOrigins = [ 'https://staging-hris.btmlimited.net'];
+// const allowedOrigins = ['http://localhost:8083',];
 app.use(
   cors({
     origin: (origin, callback) => {

@@ -654,12 +654,12 @@ export const bulkImportUsers = asyncHandler(async (
 export const setupPassword = asyncHandler(
   async (req: TypedRequest<{},SetupPasswordQuery, SetupPasswordDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
 
-    const { email, newPassword, passwordConfig, temporaryPassword }: SetPasswordDto = req.body;
+    const {newPassword, passwordConfig, temporaryPassword, token }: SetupPasswordDTO = req.body;
 
     // Extract token from query params (this is how you get it from the URL)
     
-    const activationToken = req.query.token;
-    if (!activationToken) {
+    // const activationToken = req.query.token;
+    if (!token) {
       return next(new ErrorResponse('Token is required', 400));
     }
 
@@ -672,7 +672,7 @@ export const setupPassword = asyncHandler(
     let decodedToken: { user: IUser; activationCode: string; exp: number };
 
     try {
-      decodedToken = jwt.verify(activationToken, process.env.ACCESS_TOKEN as Secret) as { user: IUser; activationCode: string; exp: number };
+      decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN as Secret) as { user: IUser; activationCode: string; exp: number };
     } catch (error) {
       return next(new ErrorResponse('Invalid or expired token', 400));
     }

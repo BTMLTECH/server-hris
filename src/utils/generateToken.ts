@@ -18,22 +18,24 @@ interface ITokenOptions {
 
 const accessTokenExpire = parseInt(process.env.ACCESS_TOKEN_EXPIRE || "1", 10); // Default to 1 day
 const refreshTokenExpire = parseInt(process.env.REFRESH_TOKEN_EXPIRE || "7", 10); // Default to 7 days
+const isProd = process.env.NODE_ENV === 'production';
 
 export const accessTokenOption: ITokenOptions = {
   expires: new Date(Date.now() + accessTokenExpire * 24 * 60 * 60 * 1000), // 1 day expiry
   maxAge: accessTokenExpire * 24 * 60 * 60 * 1000, // 1 day in milliseconds
   httpOnly: true,
-  sameSite: "none",
-  secure: true, // Set to false for local testing without HTTPS
+   sameSite: isProd ? "none": "lax",
+  secure: isProd,
+
 };
 
 export const refreshTokenOption: ITokenOptions = {
   expires: new Date(Date.now() + refreshTokenExpire * 24 * 60 * 60 * 1000), // 7 days expiry
   maxAge: refreshTokenExpire * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   httpOnly: true,
-  sameSite: "none",
-  secure: true, // Set to false for local testing without HTTPS
-  // secure: false, // Set to false for local testing without HTTPS
+  sameSite: isProd ? "none": "lax",
+  secure: isProd,
+
 };
 
 export const sendToken =  async (user: IUser, statusCode: number, res: TypedResponse<AuthData | any>, next:NextFunction) => {

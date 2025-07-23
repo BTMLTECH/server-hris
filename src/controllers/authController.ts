@@ -655,10 +655,6 @@ export const setupPassword = asyncHandler(
   async (req: TypedRequest<{},SetupPasswordQuery, SetupPasswordDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
 
     const {newPassword, passwordConfig, temporaryPassword, token }: SetupPasswordDTO = req.body;
-
-    // Extract token from query params (this is how you get it from the URL)
-    
-    // const activationToken = req.query.token;
     if (!token) {
       return next(new ErrorResponse('Token is required', 400));
     }

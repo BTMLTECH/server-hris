@@ -35,7 +35,6 @@ firstName: string;
   status: string;}
   
 export interface SetupPasswordDTO {
-email: string;
 newPassword: string;
  passwordConfig: PasswordConfig;
  temporaryPassword: string;

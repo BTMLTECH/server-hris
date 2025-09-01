@@ -1,0 +1,87 @@
+<!-- payslip-notification.ejs -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Payslip is Ready - <%= companyName %></title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #78bdfd;
+      color: #003366;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      color: #003366;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .email-wrapper {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background-color: #003366;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+
+    .footer {
+      background-color: #e0f0ff;
+      padding: 20px;
+      text-align: center;
+      font-size: 14px;
+      color: #003366;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .content {
+      padding: 20px;
+      text-align: left;
+    }
+
+    .footer-text {
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="header">
+      <% if (logoUrl) { %>
+        <img src="<%= logoUrl %>" alt="<%= companyName %> Logo" />
+      <% } %>
+      <h1>Your Payslip is Ready</h1>
+    </div>
+
+    <div class="content">
+      <p>Dear <%= name %>,</p>
+      <p>Your payslip for <strong><%= month %> <%= year %></strong> has been <strong>paid</strong> and is now available for you to download in your HRIS dashboard.</p>
+      <p>If you have any questions or concerns, please contact the HR department.</p>
+    </div>
+
+    <div class="footer">
+      <p class="footer-text">© <%= new Date().getFullYear() %> <%= companyName %>. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

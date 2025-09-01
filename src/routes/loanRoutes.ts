@@ -1,20 +1,21 @@
-import express from 'express';
-import { protect, allowEveryone, allowTeamLeadHRManager } from '../middleware/auth.middleware';
-import { tenantAuth } from '../middleware/tenantAuth';
-import { approveLoanRequest, createLoanRequest, getLoanActivityFeed, getLoanApprovalQueue, getLoanBalanceOverview, getLoanStatusOverview, rejectLoanRequest } from '../controllers/loanController';
-import { makeLoanRepayment, getRepaymentHistory } from '../controllers/repayment.controller';
-
-
-const router = express.Router();
-
-router.post('/request', protect, tenantAuth, allowEveryone, createLoanRequest);
-router.post('/:id/approve', protect, tenantAuth, allowTeamLeadHRManager, approveLoanRequest);
-router.post('/:id/reject', protect, tenantAuth, allowTeamLeadHRManager, rejectLoanRequest);
-router.get('/loan-queue', protect, tenantAuth, allowEveryone, getLoanApprovalQueue);
-router.get('/activity-feed', protect, tenantAuth, allowEveryone, getLoanActivityFeed);
-router.get('/status-overview', protect, tenantAuth, allowEveryone, getLoanStatusOverview);
-router.get('/balance-overview', protect, tenantAuth, allowEveryone, getLoanBalanceOverview);
-router.post('/loan-repayment', protect, tenantAuth, allowEveryone, makeLoanRepayment);
-router.get('/repayment-history', protect, tenantAuth, allowEveryone, getRepaymentHistory);
-
-export default router;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const tenantAuth_1 = require("../middleware/tenantAuth");
+const loanController_1 = require("../controllers/loanController");
+const repayment_controller_1 = require("../controllers/repayment.controller");
+const router = express_1.default.Router();
+router.post('/request', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, loanController_1.createLoanRequest);
+router.post('/:id/approve', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowTeamLeadHRManager, loanController_1.approveLoanRequest);
+router.post('/:id/reject', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowTeamLeadHRManager, loanController_1.rejectLoanRequest);
+router.get('/loan-queue', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, loanController_1.getLoanApprovalQueue);
+router.get('/activity-feed', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, loanController_1.getLoanActivityFeed);
+router.get('/status-overview', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, loanController_1.getLoanStatusOverview);
+router.get('/balance-overview', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, loanController_1.getLoanBalanceOverview);
+router.post('/loan-repayment', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, repayment_controller_1.makeLoanRepayment);
+router.get('/repayment-history', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, repayment_controller_1.getRepaymentHistory);
+exports.default = router;

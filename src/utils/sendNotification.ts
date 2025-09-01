@@ -1,47 +1,32 @@
-import Notification, { INotification } from '../models/Notification';
-import { IUser } from '../models/user.model';
-import { sendEmail } from './emailUtil';
-
-
-interface NotificationOptions  {
-  user: IUser;
-  type: | 'INFO'| 'WARNING'| 'ALERT'| 'NEW_LEAVE_REQUEST' 
-  | 'LEAVE_AWAITING_REVIEW' | 'LEAVE_APPROVED' | 'LEAVE_REJECTED' 
-  | 'LOAN_APPROVED' | 'LOAN_AWAITING_REVIEW' | 'NEW_LOAN_REQUEST'
-   | 'LOAN_REJECTED' | 'LOAN_REPAYMENT' | 'NEW_HANDOVER' |'NEW_APPRAISAL' 
-   | 'APPRAISAL_APPROVED' | 'APPRAISAL_REJECTED' | 'PAYSLIP' | 'NEW_PAYROLL';
-  title: string;
-  message: string;
-  metadata?: Record<string, any>;
-  emailSubject?: string;
-  emailTemplate?: string; // like 'absent-notice.ejs'
-  emailData?: Record<string, any>;
-}
-
-export const sendNotification = async ({
-  user,
-  type,
-  title,
-  message,
-  metadata,
-  emailSubject,
-  emailTemplate,
-  emailData,
-}: NotificationOptions) => {
-  // Save in database
-  await Notification.create({
-    user: user._id,
-    type,
-    title,
-    message,
-    metadata,
-  });
-
-  // Optionally send email
-  if (emailSubject && emailTemplate) {
-    await sendEmail(user.email, emailSubject, emailTemplate, {
-      name: user.firstName,
-      ...emailData,
-    });
-  }
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.sendNotification = void 0;
+const Notification_1 = __importDefault(require("../models/Notification"));
+const emailUtil_1 = require("./emailUtil");
+const sendNotification = async ({ user, type, title, message, metadata, emailSubject, emailTemplate, emailData, }) => {
+    const notification = await Notification_1.default.create({
+        user: user._id,
+        type,
+        title,
+        message,
+        metadata,
+        read: false,
+    });
+    // 2. Send email if provided
+    if (emailSubject && emailTemplate) {
+        await (0, emailUtil_1.sendEmail)(user.email, emailSubject, emailTemplate, {
+            name: user.firstName,
+            ...emailData,
+        });
+    }
+    const io = globalThis.io;
+    if (io && user._id) {
+        const roomId = user._id.toString();
+        io.to(roomId).emit('notification:new', notification.toObject());
+    }
+    return notification;
+};
+exports.sendNotification = sendNotification;

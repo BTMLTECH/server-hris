@@ -1,56 +1,21 @@
-import express from 'express';
-import { adminAttendanceReport, biometryCheckIn, biometryCheckOut, exportAttendanceExcel, getCompanyAttendanceSummary, getEmployeeAttendanceStats, getMyAttendanceHistory, manualCheckIn, manualCheckOut } from '../controllers/attendanceController';
-import { allowAdminAndHR, allowAdminOnly, allowAllRoles, allowEmployeesOnly, allowEveryone, authorizeRoles, protect } from '../middleware/auth.middleware';
-import { checkBiometryApiKey } from '../middleware/checkBiometryApiKey';
-import { tenantAuth } from '../middleware/tenantAuth';
-
-
-const router = express.Router();
-
-router.post('/biometry-check-in', checkBiometryApiKey, biometryCheckIn);
-router.post('/biometry-check-out', checkBiometryApiKey, biometryCheckOut);
-router.post('/check-in', protect, tenantAuth, allowEveryone, manualCheckIn);
-router.post('/check-out', protect, tenantAuth, allowEveryone, manualCheckOut);
-
-
-router.get(
-  '/my-history',
-  protect,
-  tenantAuth,
-  allowAllRoles,
-  getMyAttendanceHistory
-);
-
-router.get(
-  '/admin/report',
-  protect,
-  tenantAuth,
-  allowAdminAndHR,
-  adminAttendanceReport
-);
-
-router.get(
-  '/my-stats',
-  protect,
-  tenantAuth,
-  allowEmployeesOnly,
-  getEmployeeAttendanceStats
-);
-
-router.get(
-  '/company-summary',
-  protect,
-  tenantAuth,
-  allowAllRoles,
-  getCompanyAttendanceSummary
-);
-
-router.get(
-  '/admin/export-excel',
-  protect,
-  tenantAuth,
- allowAdminAndHR,
-  exportAttendanceExcel
-);
-
-export default router;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const attendanceController_1 = require("../controllers/attendanceController");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const checkBiometryApiKey_1 = require("../middleware/checkBiometryApiKey");
+const tenantAuth_1 = require("../middleware/tenantAuth");
+const router = express_1.default.Router();
+router.post('/biometry-check-in', checkBiometryApiKey_1.checkBiometryApiKey, attendanceController_1.biometryCheckIn);
+router.post('/biometry-check-out', checkBiometryApiKey_1.checkBiometryApiKey, attendanceController_1.biometryCheckOut);
+router.post('/check-in', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, attendanceController_1.manualCheckIn);
+router.post('/check-out', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEveryone, attendanceController_1.manualCheckOut);
+router.get('/my-history', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, attendanceController_1.getAttendanceHistory);
+router.get('/admin/report', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, attendanceController_1.adminAttendanceReport);
+router.get('/my-stats', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEmployeesOnly, attendanceController_1.getEmployeeAttendanceStats);
+router.get('/company-summary', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, attendanceController_1.getCompanyAttendanceSummary);
+router.get('/admin/export-excel', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, attendanceController_1.exportAttendanceExcel);
+exports.default = router;

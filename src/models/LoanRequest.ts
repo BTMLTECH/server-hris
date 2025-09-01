@@ -1,69 +1,75 @@
-import mongoose, { Schema, Document } from 'mongoose';
-
-export type LoanStatus = 'Pending' | 'Approved' | 'Rejected' | 'Disbursed' | 'Completed' | 'Expired';
-export type LoanReviewLevel = 'teamlead' | 'hod' | 'hr' | 'md';
-
-export interface ILoanReviewTrail {
-  reviewer: mongoose.Types.ObjectId;
-  role: string;
-  action: LoanStatus;
-  date: Date;
-  note?: string;
-}
-
-export interface ILoanRequest extends Document {
-  user: mongoose.Types.ObjectId;
-  teamLead: mongoose.Types.ObjectId;
-  type: 'Personal' | 'Medical' | 'Emergency' | 'Other';
-  amount: number;
-  repaymentPeriod: number; // in months
-  monthlyDeduction: number;
-  reason: string;
-  status: LoanStatus;
-  reviewLevel: LoanReviewLevel;
-  reviewTrail: ILoanReviewTrail[];
-  createdAt: Date;
-  disbursedAt?: Date;
-  completedAt?: Date;
-}
-
-const LoanRequestSchema = new Schema<ILoanRequest>({
-  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  teamLead: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  type: {
-    type: String,
-    enum: ['Personal', 'Medical', 'Emergency', 'Other'],
-    required: true,
-  },
-  amount: { type: Number, required: true },
-  repaymentPeriod: { type: Number, required: true }, // months
-  monthlyDeduction: { type: Number, required: true },
-  reason: { type: String, required: true },
-  status: {
-    type: String,
-    enum: ['Pending', 'Approved', 'Rejected', 'Disbursed', 'Completed', 'Expired'],
-    default: 'Pending',
-  },
-  reviewLevel: {
-    type: String,
-    enum: ['teamlead', 'hod', 'hod', 'md'],
-    default: 'teamlead',
-  },
-  reviewTrail: [
-    {
-      reviewer: { type: Schema.Types.ObjectId, ref: 'User' },
-      role: String,
-      action: {
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const mongoose_1 = __importStar(require("mongoose"));
+const LoanRequestSchema = new mongoose_1.Schema({
+    user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    teamLead: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    type: {
+        type: String,
+        enum: ['Personal', 'Medical', 'Emergency', 'Other'],
+        required: true,
+    },
+    amount: { type: Number, required: true },
+    repaymentPeriod: { type: Number, required: true }, // months
+    monthlyDeduction: { type: Number, required: true },
+    reason: { type: String, required: true },
+    status: {
         type: String,
         enum: ['Pending', 'Approved', 'Rejected', 'Disbursed', 'Completed', 'Expired'],
-      },
-      date: Date,
-      note: String,
+        default: 'Pending',
     },
-  ],
-  createdAt: { type: Date, default: Date.now },
-  disbursedAt: { type: Date },
-  completedAt: { type: Date },
+    reviewLevel: {
+        type: String,
+        enum: ['teamlead', 'hod', 'hod', 'md'],
+        default: 'teamlead',
+    },
+    reviewTrail: [
+        {
+            reviewer: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
+            role: String,
+            action: {
+                type: String,
+                enum: ['Pending', 'Approved', 'Rejected', 'Disbursed', 'Completed', 'Expired'],
+            },
+            date: Date,
+            note: String,
+        },
+    ],
+    createdAt: { type: Date, default: Date.now },
+    disbursedAt: { type: Date },
+    completedAt: { type: Date },
 });
-
-export default mongoose.model<ILoanRequest>('LoanRequest', LoanRequestSchema);
+exports.default = mongoose_1.default.model('LoanRequest', LoanRequestSchema);

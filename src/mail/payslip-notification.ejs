@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Your Payslip is Ready - <%= companyName %></title>
-    <style>
+  <style>
     * {
       margin: 0;
       padding: 0;
@@ -14,18 +14,13 @@
 
     body {
       font-family: Arial, sans-serif;
-      background-color: #e0f0ff; /* Light blue background */
+      background-color: #78bdfd;
       color: #003366;
       margin: 0;
       padding: 0;
     }
 
-    a {
-      color: #003366;
-      text-decoration: none;
-    }
-
-    h1, h2 {
+    h1 {
       color: #003366;
       font-size: 28px;
       font-weight: 700;
@@ -40,7 +35,7 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
 
-    .email-header {
+    .header {
       background-color: #003366;
       color: #ffffff;
       padding: 20px;
@@ -49,7 +44,7 @@
       border-top-right-radius: 8px;
     }
 
-    .email-footer {
+    .footer {
       background-color: #e0f0ff;
       padding: 20px;
       text-align: center;
@@ -59,35 +54,9 @@
       border-bottom-right-radius: 8px;
     }
 
-    .email-body {
+    .content {
       padding: 20px;
       text-align: left;
-    }
-
-    .activation-code {
-      font-size: 20px;
-      font-weight: 600;
-      color: #003366;
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .button {
-      display: inline-block;
-      background-color: #0057b8;
-      font-size: 16px;
-      font-weight: 600;
-      text-align: center;
-      color: #ffffff;
-      border-radius: 4px;
-      padding: 12px 30px;
-      text-decoration: none;
-      margin-top: 20px;
-      transition: background-color 0.3s ease;
-    }
-
-    .button:hover {
-      background-color: #003366;
     }
 
     .footer-text {
@@ -96,27 +65,22 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="email-wrapper">
     <div class="header">
-            <% if (logoUrl) { %>
+      <% if (logoUrl) { %>
         <img src="<%= logoUrl %>" alt="<%= companyName %> Logo" />
       <% } %>
       <h1>Your Payslip is Ready</h1>
     </div>
+
     <div class="content">
       <p>Dear <%= name %>,</p>
-      <p>Your payslip for <strong><%= month %> <%= year %></strong> has been successfully generated and is now available for you to view and download on your dashboard.</p>
-      <div class="summary">
-        <p><strong>Employee Name:</strong> <%= name %></p>
-        <p><strong>Month:</strong> <%= month %></p>
-        <p><strong>Year:</strong> <%= year %></p>
-        <p><strong>Net Salary:</strong> $<%= netSalary.toLocaleString() %></p>
-      </div>
+      <p>Your payslip for <strong><%= month %> <%= year %></strong> has been <strong>paid</strong> and is now available for you to download in your HRIS dashboard.</p>
       <p>If you have any questions or concerns, please contact the HR department.</p>
     </div>
-    <div class="footer">
-         <p class="footer-text">© <%= new Date().getFullYear() %> <%= companyName %>. All rights reserved.</p>
 
+    <div class="footer">
+      <p class="footer-text">© <%= new Date().getFullYear() %> <%= companyName %>. All rights reserved.</p>
     </div>
   </div>
 </body>

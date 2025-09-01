@@ -1,30 +1,25 @@
-import { NextFunction } from 'express';
-import { TypedRequest } from '../types/typedRequest';
-import { TypedResponse } from '../types/typedResponse';
-import ErrorResponse from '../utils/ErrorResponse';
-import Company from '../models/Company'; // <-- Make sure you import this
-import { AuthData } from '../types/auth';
-
-export const tenantAuth = async (
-  req: TypedRequest,
-  res: TypedResponse<AuthData>,
-  next: NextFunction
-) => {
-  try {
-    if (!req.user || !req.user.company) {
-      return next(new ErrorResponse('No company context found or not authenticated', 404));
-    }
-
-    const company = await Company.findById(req.user.company);
-
-    if (!company) {
-      return next(new ErrorResponse('Company not found', 404));
-    }
-
-    req.company = company; // ✅ Now this matches ICompany type
-
-    next();
-  } catch (err: any) {
-    next(new ErrorResponse(err.message || 'Server error', 500));
-  }
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.tenantAuth = void 0;
+const ErrorResponse_1 = __importDefault(require("../utils/ErrorResponse"));
+const Company_1 = __importDefault(require("../models/Company")); // <-- Make sure you import this
+const tenantAuth = async (req, res, next) => {
+    try {
+        if (!req.user || !req.user.company) {
+            return next(new ErrorResponse_1.default('No company context found or not authenticated', 404));
+        }
+        const company = await Company_1.default.findById(req.user.company);
+        if (!company) {
+            return next(new ErrorResponse_1.default('Company not found', 404));
+        }
+        req.company = company; // ✅ Now this matches ICompany type
+        next();
+    }
+    catch (err) {
+        next(new ErrorResponse_1.default(err.message || 'Server error', 500));
+    }
+};
+exports.tenantAuth = tenantAuth;

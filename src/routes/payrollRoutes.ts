@@ -1,45 +1,18 @@
-import { Router } from 'express';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { allowAdminOnly, allowAllRoles, protect } from '../middleware/auth.middleware';
-import { tenantAuth } from '../middleware/tenantAuth';
-import uploadHandover from '../middleware/uploadHandover';
-import { bulkUploadPayroll, createPayroll, getMyPayslips, getPayrollOverview } from '../controllers/payrollController';
-
-const router = Router();
-
-
-
-// Routes
-router.post(
-  '/bulk-import',
-  protect,
-  tenantAuth,
-  allowAdminOnly,
- createPayroll
-);
-
-router.post(
-  '/bulk-payroll',
-  protect,
-  tenantAuth,
-  allowAdminOnly,
-  bulkUploadPayroll
-);
-
-router.get(
-  '/get-payslips',
-  protect,
-  tenantAuth,
-  allowAllRoles,
-  getMyPayslips
-);
-
-router.get(
-  '/overview',
-  protect,
-  tenantAuth,
-  allowAllRoles,
-  getPayrollOverview
-);
-
-export default router;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const tenantAuth_1 = require("../middleware/tenantAuth");
+const payrollController_1 = require("../controllers/payrollController");
+const router = (0, express_1.Router)();
+router.get('/get-payslips', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, payrollController_1.getAllPayrolls);
+router.patch("/:payrollId/paid", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.markPayrollAsPaid);
+router.patch("/:payrollId/draft", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.markPayrollAsDraft);
+router.patch("/:payrollId/process", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.processSinglePayroll);
+router.patch("/:payrollId/reverse", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.reverseSinglePayroll);
+router.post("/process-bulk", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.processBulkPayroll);
+router.post("/reverse-bulk", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.reverseBulkPayroll);
+router.post("/bulk-draft", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.markPayrollsAsDraftBulk);
+router.post("/bulk-pay", auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.markPayrollsAsPaidBulk);
+router.delete('/:id', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, payrollController_1.deletePayroll);
+exports.default = router;

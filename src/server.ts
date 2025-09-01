@@ -1,110 +1,85 @@
-// import mongoose from 'mongoose';
-// import dotenv from 'dotenv';
-// import app from './app';
-// import { redisClient } from './utils/redisClient';
-// import { expireUnreviewedLeaves } from './jobs/expireLeaves';
-// import cron from 'node-cron';
-// import { autoCheckoutForgotten } from './controllers/attendanceController';
-
-// dotenv.config();
-// const PORT = process.env.PORT || 8080;
-
-// mongoose
-//   .connect(process.env.MONGO_URI!)
-//   .then(async () => {
-//     console.log('✅ MongoDB Connected');
-
-//     try {
-//       await redisClient.set('ping', 'pong');
-//       const pong = await redisClient.get('ping');
-//       console.log(`✅ Redis ping: ${pong}`);
-//     } catch (err) {
-//       console.error('❌ Redis test failed:', err);
-//     }
-
-//     // 🕒 Run on startup (optional)
-//     await expireUnreviewedLeaves();
-
-//     // 🕒 Schedule to run every day at midnight
-//     cron.schedule('0 0 * * *', async () => {
-//       console.log('⏰ Running daily leave expiry check...');
-//       await expireUnreviewedLeaves();
-//     });
-
-//         // 🕕 6:00 AM — Auto-checkout for *night* shift
-//     cron.schedule('0 6 * * *', async () => {
-//       console.log('⏰ Running 6AM cron for night shift auto-checkout...');
-//       await autoCheckoutForgotten();
-//     });
-
-//     // 🕕 6:00 PM — Auto-checkout for *day* shift
-//     cron.schedule('0 18 * * *', async () => {
-//       console.log('⏰ Running 6PM cron for day shift auto-checkout...');
-//       await autoCheckoutForgotten();
-//     });
-
-
-//     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-//   })
-//   .catch((err) => console.error('❌ MongoDB connection error:', err));
-
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import app from './app';
-import { redisClient } from './utils/redisClient';
-import { expireUnreviewedLeaves } from './jobs/expireLeaves';
-import cron from 'node-cron';
-import { autoCheckoutForgotten } from './controllers/attendanceController';
-import User from './models/user.model';
-
-
-dotenv.config();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const mongoose_1 = __importDefault(require("mongoose"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const app_1 = __importDefault(require("./app"));
+const redisClient_1 = require("./utils/redisClient");
+const expireLeaves_1 = require("./jobs/expireLeaves");
+const node_cron_1 = __importDefault(require("node-cron"));
+const attendanceController_1 = require("./controllers/attendanceController");
+const socket_io_1 = require("socket.io");
+const http_1 = __importDefault(require("http"));
+const user_model_1 = __importDefault(require("./models/user.model"));
+const generatePayroll_1 = require("./jobs/generatePayroll");
+const birthdayNotifications_1 = require("./utils/birthdayNotifications ");
+dotenv_1.default.config();
 const PORT = process.env.PORT || 8080;
-
-mongoose
-  .connect(process.env.MONGO_URI!)
-  .then(async () => {
-    console.log('✅ MongoDB Connected');
-
-//     // ✅ Drop unique index on biometryId if it exists
-//   const indexes = await User.collection.indexes();
-// const biometryIndex = indexes.find((idx) => idx.key.biometryId === 1);
-
-// if (biometryIndex?.name) {
-//   await User.collection.dropIndex(biometryIndex.name);
-//   console.log('✅ Dropped unique index on biometryId');
-// } else {
-//   console.log('ℹ️ No unique index found on biometryId');
-// }
-
+mongoose_1.default
+    .connect(process.env.MONGO_URI)
+    .then(async () => {
+    // Get existing indexes on the User collection
+    const indexes = await user_model_1.default.collection.indexes();
+    const biometryIndex = indexes.find((idx) => idx.key.biometryId === 1);
+    // Drop the old biometryId index if it exists
+    if (biometryIndex?.name) {
+        await user_model_1.default.collection.dropIndex(biometryIndex.name);
+    }
+    else {
+    }
+    // Recreate a sparse unique index on biometryId
+    await user_model_1.default.collection.createIndex({ biometryId: 1 }, { unique: true, sparse: true });
+    // Create HTTP server from Express app
+    const server = http_1.default.createServer(app_1.default);
+    // Create Socket.IO server
+    const io = new socket_io_1.Server(server, {
+        cors: {
+            origin: [
+                'http://localhost:8083',
+                'http://localhost:8082',
+                'https://staging-hris.btmlimited.net',
+            ],
+            credentials: true,
+        },
+    });
+    // Make io available globally so sendNotification helper can use it
+    app_1.default.set('io', io);
+    globalThis.io = io;
+    io.on('connection', (socket) => {
+        const userId = socket.handshake.query.userId;
+        if (userId) {
+            socket.join(userId);
+        }
+        socket.on('disconnect', () => {
+        });
+    });
     // ✅ Redis Test
     try {
-      await redisClient.set('ping', 'pong');
-      const pong = await redisClient.get('ping');
-      console.log(`✅ Redis ping: ${pong}`);
-    } catch (err) {
-      console.error('❌ Redis test failed:', err);
+        await redisClient_1.redisClient.set('ping', 'pong');
+        const pong = await redisClient_1.redisClient.get('ping');
     }
-
+    catch (err) {
+    }
     // 🕒 Initial job
-    await expireUnreviewedLeaves();
-
+    await (0, expireLeaves_1.expireUnreviewedLeaves)();
     // 🕒 Scheduled jobs
-    cron.schedule('0 0 * * *', async () => {
-      console.log('⏰ Running daily leave expiry check...');
-      await expireUnreviewedLeaves();
+    node_cron_1.default.schedule('0 0 * * *', async () => {
+        await (0, expireLeaves_1.expireUnreviewedLeaves)();
     });
-
-    cron.schedule('0 6 * * *', async () => {
-      console.log('⏰ Running 6AM cron for night shift auto-checkout...');
-      await autoCheckoutForgotten();
+    node_cron_1.default.schedule('0 6 * * *', async () => {
+        await (0, attendanceController_1.autoCheckoutForgotten)();
     });
-
-    cron.schedule('0 18 * * *', async () => {
-      console.log('⏰ Running 6PM cron for day shift auto-checkout...');
-      await autoCheckoutForgotten();
+    node_cron_1.default.schedule('0 18 * * *', async () => {
+        await (0, attendanceController_1.autoCheckoutForgotten)();
     });
-
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-  })
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
+    node_cron_1.default.schedule("0 0 1 * *", async () => {
+        await (0, generatePayroll_1.generateNextMonthPayroll)();
+    });
+    node_cron_1.default.schedule("0 0 1 * *", async () => {
+        await (0, birthdayNotifications_1.sendBirthdayNotifications)(undefined, undefined, undefined);
+    });
+    server.listen(PORT, () => { });
+})
+    .catch((err) => { });

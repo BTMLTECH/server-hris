@@ -1,18 +1,16 @@
-import express from 'express';
-import { adminAttendanceReport, biometryCheckIn, biometryCheckOut, exportAttendanceExcel, getCompanyAttendanceSummary, getEmployeeAttendanceStats, getMyAttendanceHistory, manualCheckIn, manualCheckOut } from '../controllers/attendanceController';
-import { allowAdminAndHR, allowAdminOnly, allowEmployeesOnly, allowEveryone, authorizeRoles, protect } from '../middleware/auth.middleware';
-import { checkBiometryApiKey } from '../middleware/checkBiometryApiKey';
-import { tenantAuth } from '../middleware/tenantAuth';
-import { getMyNotifications, markAsRead, markAllAsRead, deleteNotification } from '../controllers/notificationController';
-
-
-const router = express.Router();
-
-router.use(protect, tenantAuth);
-
-router.get('/', getMyNotifications);
-router.patch('/:id/read', markAsRead);
-router.patch('/mark-all', markAllAsRead);
-router.delete('/:id', deleteNotification);
-
-export default router;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const tenantAuth_1 = require("../middleware/tenantAuth");
+const notificationController_1 = require("../controllers/notificationController");
+const router = express_1.default.Router();
+router.use(auth_middleware_1.protect, tenantAuth_1.tenantAuth);
+router.get('/', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, notificationController_1.getNotifications);
+router.patch('/:id/read', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowEmployeesOnly, notificationController_1.markAsRead);
+router.patch('/read-all', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, notificationController_1.markAllAsRead);
+router.delete('/:id', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, notificationController_1.deleteNotification);
+exports.default = router;

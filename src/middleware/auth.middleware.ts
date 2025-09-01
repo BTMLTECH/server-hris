@@ -1,110 +1,75 @@
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { Request, Response, NextFunction } from 'express';
-import ErrorResponse from '../utils/ErrorResponse';
-import User from '../models/user.model';
-import { redisClient } from '../utils/redisClient';
-import { TypedResponse } from '../types/typedResponse';
-import { TypedRequest } from '../types/typedRequest';
-import { AuthData } from '../types/auth';
-import { ICompany } from '../models/Company';
-import { asyncHandler } from "./asyncHandler";
-
-
-export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
-  const blacklisted = await redisClient.get(`bl:${token}`);
-  return !!blacklisted;
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-export const protect = async (
-  req: TypedRequest,
-  res: TypedResponse<AuthData>,
-  next: NextFunction
-) => {
-  let token;
-
-
-  // ✅ First check the Authorization header
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  }
-
-  // ✅ Then fallback to cookie if Authorization header is missing
-  if (!token && req.cookies?.access_token) {
-    token = req.cookies.access_token;
-  }
-
-  if (!token) {
-    return next(new ErrorResponse('No token provided', 401));
-  }
-
-  // ✅ Optional: token blacklist check
-  if (await isTokenBlacklisted(token)) {
-    return next(new ErrorResponse('Token has been revoked', 401));
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN as string) as {
-      id: string;
-      exp: number;
-    };
-
-    const user = await User.findById(decoded.id).populate('company');
-    if (!user) {
-      return next(new ErrorResponse('User not found', 404));
-    }
-
-    req.user = user;
-    req.company = user.company as unknown as ICompany;
-    next();
-  } catch (err) {
-    return next(new ErrorResponse('Invalid token', 401));
-  }
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.allowEveryone = exports.allowEmployeesOnly = exports.allowTeamLead = exports.allowTeamLeadHRManager = exports.allowAdminAndHR = exports.allowAdminOnly = exports.allowAllRoles = exports.authorizeRoles = exports.protect = exports.isTokenBlacklisted = void 0;
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const ErrorResponse_1 = __importDefault(require("../utils/ErrorResponse"));
+const user_model_1 = __importDefault(require("../models/user.model"));
+const redisClient_1 = require("../utils/redisClient");
+const isTokenBlacklisted = async (token) => {
+    const blacklisted = await redisClient_1.redisClient.get(`bl:${token}`);
+    return !!blacklisted;
 };
-
-export const authorizeRoles =
-  (...roles: string[]) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
-
-    if (!user) {
-      return next(new ErrorResponse('Not authorized, no user attached', 401));
+exports.isTokenBlacklisted = isTokenBlacklisted;
+const protect = async (req, res, next) => {
+    let token;
+    // ✅ First check the Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
     }
-
+    // ✅ Then fallback to cookie if Authorization header is missing
+    if (!token && req.cookies?.access_token) {
+        token = req.cookies.access_token;
+    }
+    if (!token) {
+        return next(new ErrorResponse_1.default('No token provided', 401));
+    }
+    // ✅ Optional: token blacklist check
+    if (await (0, exports.isTokenBlacklisted)(token)) {
+        return next(new ErrorResponse_1.default('Token has been revoked', 401));
+    }
+    try {
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.ACCESS_TOKEN);
+        const user = await user_model_1.default.findById(decoded.id).populate('company');
+        if (!user) {
+            return next(new ErrorResponse_1.default('User not found', 404));
+        }
+        req.user = user;
+        req.company = user.company;
+        next();
+    }
+    catch (err) {
+        return next(new ErrorResponse_1.default('Invalid token', 401));
+    }
+};
+exports.protect = protect;
+const authorizeRoles = (...roles) => (req, res, next) => {
+    const user = req.user;
+    if (!user) {
+        return next(new ErrorResponse_1.default('Not authorized, no user attached', 401));
+    }
     if (roles.length === 0 || roles.includes('all')) {
-      return next(); // ✅ allow all authenticated users
+        return next(); // ✅ allow all authenticated users
     }
-
     if (!roles.includes(user.role)) {
-      return next(
-        new ErrorResponse(
-          `User role '${user.role}' is not authorized to access this route`,
-          403
-        )
-      );
+        return next(new ErrorResponse_1.default(`User role '${user.role}' is not authorized to access this route`, 403));
     }
-
     next();
-  };
-
+};
+exports.authorizeRoles = authorizeRoles;
 // 👥 Allows all core roles
-export const allowAllRoles = authorizeRoles('admin', 'hr', 'md', 'teamlead', 'employee');
-
+exports.allowAllRoles = (0, exports.authorizeRoles)('admin', 'hr', 'md', 'teamlead', 'employee');
 // 👤 Only admins
-export const allowAdminOnly = authorizeRoles('admin');
-
+exports.allowAdminOnly = (0, exports.authorizeRoles)('admin');
 // 👤 admins and hr
-export const allowAdminAndHR = authorizeRoles('admin', 'hr');
-
+exports.allowAdminAndHR = (0, exports.authorizeRoles)('admin', 'hr');
 // 👤 mds and adminMdAndAbove = authorizeRoles('admin', 'md');
-
-export const allowTeamLeadHRManager = authorizeRoles('teamlead', 'hr', 'md');
-
-export const allowTeamLead = authorizeRoles('teamlead');
-
+exports.allowTeamLeadHRManager = (0, exports.authorizeRoles)('teamlead', 'hr', 'md');
+exports.allowTeamLead = (0, exports.authorizeRoles)('teamlead');
 // 👤 employees only
-export const allowEmployeesOnly = authorizeRoles('employee');
-
+exports.allowEmployeesOnly = (0, exports.authorizeRoles)('employee');
 // 👤 Anyone authenticated (same as ALL)
-export const allowEveryone = authorizeRoles('all');
-
+exports.allowEveryone = (0, exports.authorizeRoles)('all');

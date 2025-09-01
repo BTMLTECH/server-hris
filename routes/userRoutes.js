@@ -1,0 +1,21 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const userController_1 = require("../controllers/userController");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const tenantAuth_1 = require("../middleware/tenantAuth");
+const uploadHandover_1 = __importDefault(require("../middleware/uploadHandover"));
+const generateAnalytics_1 = require("../controllers/generateAnalytics");
+const router = express_1.default.Router();
+router.get('/me', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, userController_1.getMyProfile);
+router.get('/analytics', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, generateAnalytics_1.generateAnalyticsAndDashboard);
+router.put('/:id', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, userController_1.updateMyProfile);
+router.put('/upload', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, uploadHandover_1.default.single('file'), userController_1.uploadProfilePicture);
+router.get('/users', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAllRoles, userController_1.getAllUsers);
+router.delete('/:id', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, userController_1.deleteEmployee);
+router.delete('/:id/terminate', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, userController_1.terminateEmployee);
+router.delete('/:id/activate', auth_middleware_1.protect, tenantAuth_1.tenantAuth, auth_middleware_1.allowAdminAndHR, userController_1.activateEmployee);
+exports.default = router;

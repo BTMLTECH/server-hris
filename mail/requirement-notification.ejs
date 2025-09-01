@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Onboarding Tasks - <%= companyName %></title>
+   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #78bdfd;
+      color: #8db8e2;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      color: #003366;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .email-wrapper {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .email-header {
+      background-color: #003366;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+
+    .email-header img {
+      max-height: 50px;
+      margin-bottom: 10px;
+    }
+
+    .email-body {
+      padding: 20px;
+      text-align: left;
+    }
+
+    .tasks-box {
+      font-size: 16px;
+      font-weight: 600;
+      color: #003366;
+      margin: 20px 0;
+      padding: 12px;
+      border: 2px dashed #0057b8;
+      border-radius: 6px;
+      background-color: #f2f7ff;
+    }
+
+    .tasks-box ul {
+      list-style: disc;
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .tasks-box li {
+      margin: 6px 0;
+    }
+
+    .email-footer {
+      background-color: #e0f0ff;
+      padding: 20px;
+      text-align: center;
+      font-size: 14px;
+      color: #003366;
+      border-bottom-left-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .footer-text {
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="email-wrapper">
+    <div class="email-header">
+      <% if (logoUrl) { %>
+        <img src="<%= logoUrl %>" alt="<%= companyName %> Logo" />
+      <% } %>
+      <h1>New Onboarding Tasks</h1>
+    </div>
+
+    <div class="email-body">
+      <p>Hello <%= name %>,</p>
+      <p>The following requirements need to be provided to the new hire staff member <strong><%= staffName %></strong> in the <strong><%= department %></strong> department:</p>
+
+      <div class="tasks-box">
+        <ul>
+          <% tasks.forEach(function(task) { %>
+            <li><%= task %></li>
+          <% }) %>
+        </ul>
+      </div>
+
+      <p>Please take the necessary action as soon as possible.</p>
+    </div>
+
+    <div class="email-footer">
+      <p class="footer-text">© <%= new Date().getFullYear() %> <%= companyName %>. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -54,7 +54,10 @@ export const generateRandomPassword = (length: number) => {
 
 
  const createActivationLink = (token: Secret): string => {
+
   return `http://staging-hris.btmlimited.net/set-password?token=${token}`;
+
+
 };
 
 

@@ -51,15 +51,15 @@ app.use('/api/salary', companySalaryStructureRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 
-// app.all("*", (req: Request, res: Response, next: NextFunction) => {
-//   console.log(`Route not found: ${req.originalUrl}`);
-//   const error = new Error(`Route ${req.originalUrl} not found`) as any;
-//   error.statusCode = 404;
-//   next(error);
-// });
+app.all("*", (req: Request, res: Response, next: NextFunction) => {
+  console.log(`Route not found: ${req.originalUrl}`);
+  const error = new Error(`Route ${req.originalUrl} not found`) as any;
+  error.statusCode = 404;
+  next(error);
+});
 
 
 // 🚨 Error Handling Middleware
-// app.use(ErrorMiddleware);
+app.use(ErrorMiddleware);
 
 export default app;

@@ -1,281 +1,496 @@
+import { NextFunction } from "express";
+import mongoose from "mongoose";
+import ErrorResponse from "../utils/ErrorResponse";
+import { TypedRequest } from "../types/typedRequest";
+import TaxInfo from "../models/TaxInfo";
+import { logAudit } from "../utils/logAudit";
+import { getMonthName, ExportService } from "../services/export.service";
+import { sendNotification } from "../utils/sendNotification";
+import User, { IUser } from "../models/user.model";
+import pLimit from "p-limit";
+import { asyncHandler } from "../middleware/asyncHandler";
+import { TypedResponse } from "../types/typedResponse";
+import { uploadToCloudinary } from "../utils/cloudinary";
+import PayrollNew from "../models/PayrollNew";
 
+interface PayrollParams {
+  payrollId?: string;
+}
 
-import { NextFunction } from 'express';
-import CompanySalaryStructure from '../models/CompanySalaryStructure';
-import Payroll from '../models/Payroll'; 
-import { TypedRequest } from '../types/typedRequest';
-import { TypedResponse } from '../types/typedResponse';
-import ErrorResponse from '../utils/ErrorResponse';
-import { logAudit } from '../utils/logAudit';
-import { sendNotification } from '../utils/sendNotification';
-import User, {IUser} from '../models/user.model';
-import { parseExcelPayroll } from '../utils/excelParser';
-import { calculatePayroll } from '../utils/calculatePayroll';
-import { CreateBulkPayrollResponse, CreatePayrollDTO, CreatePayrollResponse, PayrollOverviewDTO, PayrollOverviewResponse } from '../types/payrollTypes';
+interface PayrollBulkBody {
+  month: number;
+  year: number;
+}
 
-export const createPayroll = async (
-  req: TypedRequest<{}, {}, CreatePayrollDTO>,
-  res: TypedResponse<CreatePayrollResponse>,
-  next: NextFunction
-) => {
-  try {
-    const { email, month, year, allowances, deductions } = req.body;
+// GET all payrolls
+export const getAllPayrolls = asyncHandler(
+  async (
+    req: TypedRequest<{}, any, {}>,
+    res: TypedResponse<any>,
+    next: NextFunction
+  ) => {
+    const user = req.user;
+    const company = req.company;
+    if (!user || !company) return next(new ErrorResponse("Unauthorized or no company context", 401));
 
-    if (!email || !month || !year) {
-      return next(new ErrorResponse('Employee email, month, and year are required', 400));
+    const { page = "1", limit = "100", sort = "desc", employee, month, year, search } = req.query;
+    const pageNum = Math.max(Number(page), 1);
+    const limitNum = Math.min(Math.max(Number(limit), 1), 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const matchStage: any = { company: company._id };
+    if (user.role !== "admin" && user.role !== "hr") {
+      matchStage.user = user._id;
+      matchStage.status = "paid";
+    } else if (employee) matchStage.user = new mongoose.Types.ObjectId(employee);
+    if (month) matchStage.month = Number(month);
+    if (year) matchStage.year = Number(year);
+
+    const pipeline: any[] = [
+      { $match: matchStage },
+      { $lookup: { from: "users", localField: "user", foreignField: "_id", as: "user" } },
+      { $unwind: "$user" },
+      { $lookup: { from: "companies", localField: "company", foreignField: "_id", as: "company" } },
+      { $unwind: "$company" },
+    ];
+
+    if (search) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      pipeline.push({ $match: { $or: [{ "user.firstName": searchRegex }, { "user.lastName": searchRegex }] } });
     }
 
-    const employee = await User.findOne({ email });
+    pipeline.push(
+      { $sort: { year: sort === "asc" ? 1 : -1, month: sort === "asc" ? 1 : -1 } },
+      { $facet: { data: [{ $skip: skip }, { $limit: limitNum }], totalCount: [{ $count: "count" }] } }
+    );
 
-    if (!employee) {
-      return next(new ErrorResponse('Employee not found', 404));
-    }
+    const results = await PayrollNew.aggregate(pipeline);
+    const payrolls = results[0]?.data || [];
+    const total = results[0]?.totalCount[0]?.count || 0;
 
-    const companyStructure = await CompanySalaryStructure.findOne({ company: employee.company });
+    const payrollIds = payrolls.map((p: { _id: any; }) => p._id);
+    const taxInfos = await TaxInfo.find({ payrollId: { $in: payrollIds } }).lean();
+    const taxInfoMap = new Map(taxInfos.map((t) => [t.payrollId.toString(), t]));
+    const enrichedPayrolls = payrolls.map((p: { _id: { toString: () => string; }; }) => ({ ...p, taxInfo: taxInfoMap.get(p._id.toString()) || null }));
 
-    if (!companyStructure) {
-      return next(new ErrorResponse('Company salary structure not found', 404));
-    }
+    await logAudit({ userId: user._id, action: "GET_ALL_PAYROLLS", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
 
-    const calculated = calculatePayroll({
-      basicSalary: companyStructure.basicSalary,
-      allowances: allowances || [],
-      deductions: deductions || [],
-      taxPercentage: companyStructure.taxPercentage,
+    res.status(200).json({
+      success: true,
+      message: "Payrolls fetched successfully",
+      data: {
+        count: enrichedPayrolls.length,
+        data: enrichedPayrolls,
+        pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) },
+      },
     });
+  }
+);
 
-    const payroll = await Payroll.create({
-      employee: employee._id,
-      company: employee.company,
-      month,
-      year,
-      basicSalary: companyStructure.basicSalary,
-      allowances,
-      deductions,
-      grossSalary: calculated.grossSalary,
-      netSalary: calculated.netSalary,
-      tax: calculated.taxPercentage,
-      status: 'Paid',
-      paidDate: new Date(),
-    });
+// DELETE single payroll
+export const deletePayroll = asyncHandler(
+  async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+    const payrollId = req.params.payrollId;
+    const payroll = await PayrollNew.findById(payrollId);
+    if (!payroll) return next(new ErrorResponse("Payroll not found", 404));
+
+    await TaxInfo.findOneAndDelete({ payrollId });
+    await PayrollNew.findByIdAndDelete(payrollId);
+
+    await logAudit({ userId: req.user?._id, action: "DELETE_PAYROLL", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") || "" });
+    res.status(200).json({ success: true, message: "Payroll deleted successfully" });
+  }
+);
+
+// MARK single payroll as draft
+export const markPayrollAsDraft = asyncHandler(
+  async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+    const { payrollId } = req.params;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+
+    const payroll = await PayrollNew.findById(payrollId).populate<{user: IUser}>("user");
+    if (!payroll) return next(new ErrorResponse("Payroll not found", 404));
+    if (payroll.company.toString() !== companyId.toString()) return next(new ErrorResponse("Payroll does not belong to your company", 403));
+    if (payroll.status === "draft") return next(new ErrorResponse("Payroll is already in draft status", 400));
+
+    payroll.status = "draft";
+    await payroll.save();
+
+    await logAudit({ userId, action: "MARK_PAYROLL_AS_DRAFT", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
+
+    res.status(200).json({ success: true, message: `Payroll status updated to draft for ${payroll.user.firstName} ${payroll.user.lastName}`, data: payroll });
+  }
+);
+
+// REVERSE single payroll
+export const reverseSinglePayroll = asyncHandler(
+  async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+    const { payrollId } = req.params;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+
+    const payroll = await PayrollNew.findById(payrollId).populate<{user: IUser}>("user");
+    if (!payroll) return next(new ErrorResponse("Payroll not found", 404));
+    if (payroll.company.toString() !== companyId.toString()) return next(new ErrorResponse("Payroll does not belong to your company", 403));
+    if (payroll.status === "pending") return next(new ErrorResponse("Payroll is already in pending status", 400));
+
+    payroll.status = "pending";
+    await payroll.save();
+
+    await logAudit({ userId, action: "REVERSE_SINGLE_PAYROLL", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
+
+    res.status(200).json({ success: true, message: `Payroll status updated to pending for ${payroll.user.firstName} ${payroll.user.lastName}`, data: payroll });
+  }
+);
+
+// PROCESS single payroll
+export const processSinglePayroll = asyncHandler(
+  async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+    const { payrollId } = req.params;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    const payroll = await PayrollNew.findById(payrollId).populate("user");
+    if (!payroll) return next(new ErrorResponse("Payroll not found", 404));
+    if (payroll.status !== "draft") return next(new ErrorResponse("Only draft payrolls can be processed", 400));
+
+    const employee = payroll.user as IUser;
+    const monthName = getMonthName(Number(payroll.month));
+
+    const pdfBuffer = await ExportService.generatePayrollPDF(payroll, employee, company);
+    const excelBuffer = await ExportService.generatePayrollExcel(payroll, employee, company);
+
+    const pdfUpload = await uploadToCloudinary(pdfBuffer, `payroll/${companyId}`, "raw", `payroll_${employee.firstName}_${employee.lastName}_${monthName}_${payroll.year}.pdf`);
+    const excelUpload = await uploadToCloudinary(excelBuffer, `payroll/${companyId}`, "raw", `payroll_${employee.firstName}_${employee.lastName}_${monthName}_${payroll.year}.xlsx`);
+
+    const accountLead = await User.findOne({ company: companyId, department: "account", role: "teamlead" });
+    if (accountLead) {
+      await sendNotification({
+        user: accountLead,
+        type: "PAYSLIP",
+        title: `Payroll Processed – ${employee.firstName} ${employee.lastName} (${monthName} ${payroll.year})`,
+        message: `Payroll processed. Files available.`,
+        emailSubject: `Payroll Processed – ${employee.firstName} ${employee.lastName} (${monthName} ${payroll.year})`,
+        emailTemplate: "payroll-notification.ejs",
+        emailData: { name: accountLead.firstName, staffName: `${employee.firstName} ${employee.lastName}`, month: monthName, year: payroll.year, pdfUrl: pdfUpload.secure_url, excelUrl: excelUpload.secure_url, companyName: company?.branding?.displayName || company?.name },
+      });
+    }
+
+    payroll.status = "processed";
+    await payroll.save();
+
+    await logAudit({ userId, action: "PROCESS_SINGLE_PAYROLL", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
+
+    res.status(200).json({ success: true, message: "Payroll processed successfully; team lead notified.", data: payroll });
+  }
+);
+
+// MARK single payroll as paid
+export const markPayrollAsPaid = asyncHandler(
+  async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+    const { payrollId } = req.params;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+
+    const payroll = await PayrollNew.findById(payrollId).populate("user");
+    if (!payroll) return next(new ErrorResponse("Payroll not found", 404));
+    if (payroll.company.toString() !== companyId.toString()) return next(new ErrorResponse("Payroll does not belong to your company", 403));
+    if (payroll.status === "paid") return next(new ErrorResponse("Payroll is already marked as paid", 400));
+
+    payroll.status = "paid";
+    await payroll.save();
+
+    const employee = payroll.user as IUser;
+    const monthName = new Date(payroll.year, Number(payroll.month) - 1).toLocaleString("default", { month: "long" });
 
     await sendNotification({
       user: employee,
-      type: 'PAYSLIP',
-      title: 'Your Payslip is Ready',
-      message: `Your payslip for ${month} ${year} has been generated.`,
-      metadata: {
-        month,
-        year,
-        netSalary: calculated.netSalary,
-      },
-      emailSubject: 'Your Payslip is Ready',
-      emailTemplate: 'payslip-notification.ejs',
-      emailData: {
-        name: employee.firstName,
-        month,
-        year,
-        netSalary: calculated.netSalary,
-      },
+      type: "PAYSLIP",
+      title: `Your Payslip for ${monthName} ${payroll.year} is Ready`,
+      message: `Your payslip has been paid and is now available for download.`,
+      emailSubject: `Payslip - ${monthName} ${payroll.year}`,
+      emailTemplate: "payslip-notification.ejs",
+      emailData: { name: employee.firstName, month: monthName, year: payroll.year, companyName: company?.branding?.displayName || company?.name },
     });
 
-    await logAudit({
-      userId: req.user?._id,
-      action: 'CREATE_PAYROLL',
-      status: 'SUCCESS',
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-    });
+    await logAudit({ userId, action: "MARK_PAYROLL_AS_PAID", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
 
-    res.status(201).json({
-      success: true,
-      message: 'Payroll created successfully',
-      data: {
-        data: payroll
-      },
-    });
-  } catch (error: any) {
-    next(new ErrorResponse(error.message, 500));
+    res.status(200).json({ success: true, message: `Payroll marked as paid and employee ${employee.firstName} notified.`, data: payroll });
   }
-};
+);
 
+// BULK operations (mark as paid/draft, process, reverse)
+export const markPayrollsAsPaidBulk = asyncHandler(
+  async (req: TypedRequest<{}, {}, PayrollBulkBody>, res: any, next: NextFunction) => {
+    const { month, year } = req.body;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
 
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+    if (!month || !year) return next(new ErrorResponse("Month and year are required", 400));
 
+    const payrolls = await PayrollNew.find({ company: companyId, month, year, status: "processed" }).populate("user");
+    if (payrolls.length === 0) return next(new ErrorResponse(`No processed payrolls found for ${getMonthName(month)} ${year}`, 404));
 
-export const bulkUploadPayroll = async (
-  req: TypedRequest<{}, {}, {}>,
-  res: TypedResponse<CreateBulkPayrollResponse>,
-  next: NextFunction
-) => {
-  try {
-    if (!req.file) {
-      return next(new ErrorResponse('No file uploaded.', 400));
-    }
-
-    const companyId = req.company?.id;
-    const hrUserId = req.user?._id;
-
-    const rows = parseExcelPayroll(req.file.buffer);
-
-    if (!Array.isArray(rows)) {
-      return next(new ErrorResponse('Invalid Excel data.', 400));
-    }
-
-    const companyStructure = await CompanySalaryStructure.findOne({ company: companyId });
-    const taxPercentage = companyStructure?.taxPercentage || 0;
-
-    const created: string[] = [];
-    const failed: string[] = [];
-
-    for (const row of rows) {
-      const employee = await User.findOne({ email: row.email, company: companyId });
-
-      if (!employee) {
-        failed.push(row.email);
-        continue;
+    const limit = pLimit(20);
+    const results = await Promise.all(payrolls.map((payroll) => limit(async () => {
+      try {
+        payroll.status = "paid";
+        await payroll.save();
+        const employee = payroll.user as IUser;
+        await sendNotification({
+          user: employee,
+          type: "PAYSLIP",
+          title: `Your Payslip for ${getMonthName(Number(payroll.month))} ${payroll.year} is Ready`,
+          message: `Your payslip has been paid and is now available.`,
+          emailSubject: `Payslip - ${getMonthName(Number(payroll.month))} ${payroll.year}`,
+          emailTemplate: "payslip-notification.ejs",
+          emailData: { name: employee.firstName, month: getMonthName(Number(payroll.month)), year: payroll.year, companyName: company?.branding?.displayName || company?.name },
+        });
+        return { success: true, payrollId: payroll._id, employee: `${employee.firstName} ${employee.lastName}` };
+      } catch (err: any) {
+        return { success: false, payrollId: payroll._id, error: err.message };
       }
+    })));
 
-      const calculated = calculatePayroll({
-        basicSalary: row.basicSalary,
-        allowances: row.allowances,
-        deductions: row.deductions,
-        taxPercentage,
-      });
+    const successes = results.filter((r) => r.success);
+    const failures = results.filter((r) => !r.success);
 
-      const payroll = await Payroll.create({
-        employee: employee._id,
-        company: companyId,
-        month: row.month,
-        year: row.year,
-        basicSalary: row.basicSalary,
-        allowances: row.allowances,
-        deductions: row.deductions,
-        grossSalary: calculated.grossSalary,
-        totalDeductions: calculated.totalDeductions,
-        netSalary: calculated.netSalary,
-        tax: calculated.taxAmount,
-        status: 'Paid',
-        paidDate: new Date(),
-        payslipUrl: '',
-      });
+    await logAudit({ userId, action: "MARK_BULK_PAYROLL_AS_PAID", status: "SUCCESS", ip: req.ip, userAgent: req.get("user-agent") });
 
-      await sendNotification({
-        user: employee,
-        type: 'NEW_PAYROLL',
-        title: 'New Payslip Available',
-        message: `Your payslip for ${row.month} ${row.year} is now available.`,
-        emailSubject: 'New Payslip Available',
-        emailTemplate: 'payslip-notification.ejs',
-        emailData: {
-          name: employee.firstName,
-          month: row.month,
-          year: row.year,
-          netSalary: calculated.netSalary,
-        },
-      });
-
-      
-
-      created.push(row.email);
-    }
-
-    await logAudit({
-      userId: hrUserId,
-      action: 'BULK_UPLOAD_PAYROLL',
-      status: 'SUCCESS',
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Payroll records processed successfully.',
-      data: {
-        created,
-        failed,
-      },
-    });
-  } catch (error: any) {
-    next(new ErrorResponse(error.message, 500));
+    res.status(200).json({ success: true, message: `Bulk payroll update completed for ${getMonthName(month)} ${year}. ${successes.length} paid, ${failures.length} failed.`, data: { successes, failures } });
   }
-};
-
-
-export const getMyPayslips = async (
-  req: TypedRequest,
-  res: TypedResponse<CreatePayrollResponse>,
-  next: NextFunction
-) => {
-  try {
-    const employeeId = req.user?.id;
-
-    if (!employeeId) {
-      return next(new ErrorResponse('Unauthorized access', 401));
-    }
-
-    // Fetch the latest payslip (single document)
-    const payslip = await Payroll.findOne({ employee: employeeId }).sort({ createdAt: -1 });
-
-    if (!payslip) {
-      return next(new ErrorResponse('No payslip found.', 404));
-    }
-
-    // Return a single payroll in the `data` field
-    res.status(200).json({
-      success: true,
-      data: {
-        data: payslip
-      },  
-    });
-  } catch (error: any) {
-    next(new ErrorResponse(error.message, 500));
-  }
-};
+);
 
 
 
+interface BulkPayrollBody {
+  month: number;
+  year: number;
+}
 
-type PayrollOverviewQuery = {
-  month?: string;
-  year?: string;
-};
+// MARK PAYROLLS AS DRAFT BULK
+export const markPayrollsAsDraftBulk = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, BulkPayrollBody>,
+    res: any,
+    next: NextFunction
+  ) => {
+    const { month, year } = req.body;
+    const companyId = req.company?._id;
+    const userId = req.user?._id;
 
-export const getPayrollOverview = async (
-  req: TypedRequest<{}, PayrollOverviewQuery, {}>,
-  res: TypedResponse<PayrollOverviewResponse>,
-  next: NextFunction
-) => {
-  try {
-    const companyId = req.company?.id;
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+    if (!month || !year)
+      return next(new ErrorResponse("Month and year are required", 400));
 
-    const { month, year } = req.query;
+    const payrolls = await PayrollNew.find({
+      company: companyId,
+      month,
+      year,
+      status: { $ne: "draft" },
+    }).populate("user");
 
-    const filter: any = { company: companyId };
+    if (payrolls.length === 0)
+      return next(
+        new ErrorResponse(`No payrolls found to draft for ${getMonthName(month)} ${year}`, 404)
+      );
 
-    if (month) filter.month = month;
-    if (year) filter.year = parseInt(year, 10);
-
-    const payrolls = await Payroll.find(filter);
-
-    const totalPayroll = payrolls.reduce((sum, p) => sum + p.netSalary, 0);
-    const totalEmployees = payrolls.length;
-    const averageSalary = totalEmployees > 0 ? totalPayroll / totalEmployees : 0;
-    const totalDeductions = payrolls.reduce(
-      (sum, p) => sum + p.tax + p.deductions.reduce((dSum, d) => dSum + d.amount, 0),
-      0
+    const limit = pLimit(20);
+    const results = await Promise.all(
+      payrolls.map((payroll) =>
+        limit(async () => {
+          try {
+            payroll.status = "draft";
+            await payroll.save();
+            const employee = payroll.user as IUser;
+            return {
+              success: true,
+              payrollId: payroll._id,
+              employee: `${employee.firstName} ${employee.lastName}`,
+            };
+          } catch (err: any) {
+            return { success: false, payrollId: payroll._id, error: err.message };
+          }
+        })
+      )
     );
 
+    const successes = results.filter((r) => r.success);
+    const failures = results.filter((r) => !r.success);
+
+    await logAudit({
+      userId,
+      action: "MARK_BULK_PAYROLL_AS_DRAFT",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
     res.status(200).json({
       success: true,
-      message: 'Payroll overview retrieved successfully.',
-      data: {
-        totalPayroll,
-        totalEmployees,
-        averageSalary,
-        totalDeductions,
-      },
+      message: `Bulk payroll draft completed for ${getMonthName(month)} ${year}. ${successes.length} drafted, ${failures.length} failed.`,
+      data: { successes, failures },
     });
-  } catch (error: any) {
-    next(new ErrorResponse(error.message, 500));
   }
-};
+);
+
+// REVERSE BULK PAYROLL
+export const reverseBulkPayroll = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, BulkPayrollBody>,
+    res: any,
+    next: NextFunction
+  ) => {
+    const { month, year } = req.body;
+    const companyId = req.company?._id;
+    const userId = req.user?._id;
+
+    if (!companyId) return next(new ErrorResponse("Company not found", 404));
+    if (!month || !year)
+      return next(new ErrorResponse("Month and year are required", 400));
+
+    const payrolls = await PayrollNew.find({ company: companyId, month, year }).populate("user");
+
+    if (payrolls.length === 0)
+      return next(new ErrorResponse("No payrolls found for this period", 404));
+
+    const reversed = [];
+    const errors = [];
+
+    for (const payroll of payrolls) {
+      try {
+        if (payroll.status === "pending") {
+          errors.push({ payrollId: payroll._id, error: "Payroll is already in pending status" });
+          continue;
+        }
+        payroll.status = "pending";
+        await payroll.save();
+        reversed.push(payroll);
+      } catch (err: any) {
+        errors.push({ payrollId: payroll._id, error: err.message || "Failed to reverse payroll" });
+      }
+    }
+
+    if (reversed.length === 0)
+      return next(new ErrorResponse("No payrolls were reversed", 400));
+
+    await logAudit({
+      userId,
+      action: "REVERSE_BULK_PAYROLL",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk payroll reversal completed for ${getMonthName(month)} ${year}. ${reversed.length} payroll(s) reversed, ${errors.length} failed.`,
+      data: { reversedCount: reversed.length, reversed },
+      errors,
+    });
+  }
+);
+
+// PROCESS BULK PAYROLL
+export const processBulkPayroll = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, BulkPayrollBody>,
+    res: any,
+    next: NextFunction
+  ) => {
+    const { month, year } = req.body;
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    if (!month || !year)
+      return next(new ErrorResponse("Month and year are required", 400));
+
+    const payrolls = await PayrollNew.find({
+      company: companyId,
+      month,
+      year,
+      status: "draft",
+    }).populate("user");
+
+    if (payrolls.length === 0)
+      return next(new ErrorResponse(`No draft payrolls found for this period`, 404));
+
+    const monthName = getMonthName(Number(month));
+
+    const items = payrolls.map((payroll) => ({ payroll, employee: payroll.user as IUser }));
+
+    const [pdfBuffer, excelBuffer] = await Promise.all([
+      ExportService.generatePayrollPDF(items, company),
+      ExportService.generatePayrollExcel(items, company),
+    ]);
+
+    const [pdfUpload, excelUpload] = await Promise.all([
+      uploadToCloudinary(pdfBuffer, `payroll/${companyId}`, "raw", `bulk_${monthName}_${year}_payroll.pdf`),
+      uploadToCloudinary(excelBuffer, `payroll/${companyId}`, "raw", `bulk_${monthName}_${year}_payroll.xlsx`),
+    ]);
+
+    const pdfUrl = pdfUpload.secure_url;
+    const excelUrl = excelUpload.secure_url;
+
+    await PayrollNew.updateMany(
+      { _id: { $in: payrolls.map((p) => p._id) } },
+      { $set: { status: "processed" } }
+    );
+
+    const accountLead = await User.findOne({
+      company: companyId,
+      department: "account",
+      role: "teamlead",
+    });
+
+    if (accountLead) {
+      await sendNotification({
+        user: accountLead,
+        type: "PAYSLIP",
+        title: `Bulk Payroll Processed – ${payrolls.length} Employees`,
+        message: `Payroll for ${payrolls.length} employees has been processed for ${monthName} ${year}. Files available below.`,
+        emailSubject: `Bulk Payroll Processed – ${payrolls.length} Employees`,
+        emailTemplate: "payroll-notification.ejs",
+        emailData: {
+          name: accountLead.firstName,
+          staffName: `${accountLead.firstName} ${accountLead.lastName}`,
+          month: monthName,
+          year,
+          pdfUrl,
+          excelUrl,
+          companyName: company?.branding?.displayName || company?.name,
+          logoUrl: company?.branding?.logoUrl,
+          primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+        },
+      });
+    }
+
+    await logAudit({
+      userId,
+      action: "PROCESS_BULK_PAYROLL",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk payroll processed for ${monthName} ${year}.`,
+      data: { count: payrolls.length, pdfUrl, excelUrl },
+    });
+  }
+);

@@ -10,7 +10,7 @@ import { TypedResponse } from '../types/typedResponse';
 
 
 export const bulkCreateDepartments = asyncHandler(async (
-  req: TypedRequest<{id: string }, {}, any>, 
+  req: TypedRequest<{id?: string }, {}, any>, 
   res: TypedResponse<any>,
    next: NextFunction
 
@@ -101,7 +101,7 @@ export const getAllDepartments = asyncHandler(async (
 });
 
 export const updateDepartment = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, any>,
+  req: TypedRequest<{ id?: string }, {}, any>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {

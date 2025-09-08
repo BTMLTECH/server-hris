@@ -1,18 +1,30 @@
-import express from 'express';
-import { approveLeaveRequest, createLeaveRequest, getLeaveApprovers, getLeaveActivityFeed, getLeaveApprovalQueue, getLeaveStatusOverview, rejectLeaveRequest } from '../controllers/leaveController';
-import { protect, allowEveryone, allowTeamLeadHRManager } from '../middleware/auth.middleware';
-import { tenantAuth } from '../middleware/tenantAuth';
-
+import express from "express";
+import {
+  createLeaveRequest,
+  approveLeaveRequest,
+  rejectLeaveRequest,
+  getLeaveApprovalQueue,
+  getLeaveActivityFeed,
+  getLeaveApprovers,
+  getLeaveStatusOverview,
+} from "../controllers/leaveController";
+import { protect, allowEveryone, allowAllRoles, allowAdminAndHR } from "../middleware/auth.middleware";
+import { tenantAuth } from "../middleware/tenantAuth";
+import uploadHandover from "../middleware/uploadHandover";
+import { updateLeaveBalance } from "../controllers/leaveBalanceController";
 
 const router = express.Router();
 
-router.post('/request', protect, tenantAuth, allowEveryone, createLeaveRequest);
-router.post('/:id/approve', protect, tenantAuth, allowTeamLeadHRManager, approveLeaveRequest);
-router.post('/:id/reject', protect, tenantAuth, allowTeamLeadHRManager, rejectLeaveRequest);
-router.get('/leave-queue', protect, tenantAuth, allowEveryone, getLeaveApprovalQueue);
-router.get('/activity-feed', protect, tenantAuth, allowEveryone, getLeaveActivityFeed);
-router.get('/teamlead', protect, tenantAuth, allowEveryone, getLeaveApprovers);
-router.get('/status-overview', protect, tenantAuth, allowEveryone, getLeaveStatusOverview);
-// router.get('/activity/team', protect, tenantAuth, allowTeamLeadHRManager, getTeamLeaveActivity);
+// Leave request routes
+router.post("/request", protect, tenantAuth, allowEveryone, uploadHandover.single("file"), createLeaveRequest);
+router.post("/:id/approve", protect, tenantAuth, allowAllRoles, approveLeaveRequest);
+router.post("/:id/reject", protect, tenantAuth, allowAllRoles, rejectLeaveRequest);
+
+// Leave queue & activity
+router.get("/leave-queue", protect, tenantAuth, allowEveryone, getLeaveApprovalQueue);
+router.get("/activity-feed", protect, tenantAuth, allowEveryone, getLeaveActivityFeed);
+router.get("/teamlead", protect, tenantAuth, allowEveryone, getLeaveApprovers);
+router.get("/status-overview", protect, tenantAuth, allowEveryone, getLeaveStatusOverview);
+router.put("/:id/balance", protect, tenantAuth, allowAdminAndHR, updateLeaveBalance);
 
 export default router;

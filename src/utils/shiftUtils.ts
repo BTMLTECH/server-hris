@@ -19,7 +19,7 @@ export const getCurrentShift = (
     endTime.setHours(17, 0, 0, 0);   // 5:00 PM
   } else {
     // Handle night shift that spans 2 days
-    startTime.setHours(16, 0, 0, 0); // 4:00 PM same day
+    startTime.setHours(17, 0, 0, 0); // 5:00 PM same day
     endTime.setDate(endTime.getDate() + 1);
     endTime.setHours(5, 0, 0, 0);    // 5:00 AM next day
   }

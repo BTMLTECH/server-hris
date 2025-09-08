@@ -242,7 +242,7 @@ export const getAllClassLevels = asyncHandler(async (
 });
 
 export const updateClassLevel = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, any>,
+  req: TypedRequest<{ id?: string }, {}, any>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {
@@ -292,7 +292,7 @@ export const updateClassLevel = asyncHandler(async (
 });
 
 export const deleteClassLevel = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, any>,
+  req: TypedRequest<{ id?: string }, {}, any>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {

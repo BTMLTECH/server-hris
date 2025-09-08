@@ -8,9 +8,10 @@ interface LogParams {
   ip?: string;
   userAgent?: string;
   companyId?: string
+  details?: object;
 }
 
-export const logAudit = async ({ userId, action, status, ip, userAgent, companyId }: LogParams): Promise<void> => {
+export const logAudit = async ({ userId, action, status, ip, userAgent, companyId, details }: LogParams): Promise<void> => {
   try {
     await AuditLog.create({
       user: userId,
@@ -19,6 +20,7 @@ export const logAudit = async ({ userId, action, status, ip, userAgent, companyI
       ipAddress: ip,
       userAgent,
       companyId,
+      details,
     });
   } catch (err) {
   }

@@ -1,65 +1,33 @@
-import express from 'express';
-import { allowAdminAndHR, allowAllRoles, allowEmployeesOnly, allowEveryone, allowTeamLead, allowTeamLeadHRManager, protect } from '../middleware/auth.middleware';
-import { tenantAuth } from '../middleware/tenantAuth';
-import uploadHandover from '../middleware/uploadHandover';
-import { createHandoverReport, getMyHandovers, getTeamDepartmentHandovers, deleteHandoverById } from '../controllers/handoverController';
-
-
+import express from "express";
+import {
+  createHandoverReport,
+  getMyHandovers,
+  getTeamLeadByEmployeeDepartment,
+  deleteHandoverById,
+} from "../controllers/handoverController";
+import { protect, allowEmployeesOnly, allowAllRoles } from "../middleware/auth.middleware";
+import { tenantAuth } from "../middleware/tenantAuth";
+import uploadHandover from "../middleware/uploadHandover";
 
 const router = express.Router();
+
+// Create a handover report
 router.post(
-  '/create',
+  "/create",
   protect,
   tenantAuth,
   allowEmployeesOnly,
-  uploadHandover.single('file'),
+  uploadHandover.single("file"),
   createHandoverReport
 );
 
-// Get My Reports
-router.get(
-  '/report',
-  protect,
-  tenantAuth,
-  allowEmployeesOnly,
-  getMyHandovers
-);
+// Get my reports
+router.get("/report", protect, tenantAuth, allowEmployeesOnly, getMyHandovers);
 
-router.get(
-  '/reports',
-  protect,
-  tenantAuth,
-  allowTeamLead,
-  getTeamDepartmentHandovers
-);
+// Get team lead reports by department
+router.get("/reports", protect, tenantAuth, allowAllRoles, getTeamLeadByEmployeeDepartment);
 
-router.delete(
-  '/report/:id',
-  protect,
-  tenantAuth,
-  allowEmployeesOnly,
-  deleteHandoverById
-);
-
-
-// Approve Report
-// router.put(
-//   '/:id/approve',
-//   protect,
-//   tenantAuth,
-//   allowTeamLead,
-//   approveHandoverReport
-// );
-
-// // Reject Report
-// router.put(
-//   '/:id/reject',
-//   protect,
-//   tenantAuth,
-//   allowTeamLead,
-//   rejectHandoverReport
-// );
+// Delete a report
+router.delete("/report/:id", protect, tenantAuth, allowEmployeesOnly, deleteHandoverById);
 
 export default router;
-
-

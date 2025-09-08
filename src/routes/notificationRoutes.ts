@@ -1,18 +1,29 @@
-import express from 'express';
-import { adminAttendanceReport, biometryCheckIn, biometryCheckOut, exportAttendanceExcel, getCompanyAttendanceSummary, getEmployeeAttendanceStats, getMyAttendanceHistory, manualCheckIn, manualCheckOut } from '../controllers/attendanceController';
-import { allowAdminAndHR, allowAdminOnly, allowEmployeesOnly, allowEveryone, authorizeRoles, protect } from '../middleware/auth.middleware';
-import { checkBiometryApiKey } from '../middleware/checkBiometryApiKey';
-import { tenantAuth } from '../middleware/tenantAuth';
-import { getMyNotifications, markAsRead, markAllAsRead, deleteNotification } from '../controllers/notificationController';
-
+import express from "express";
+import { NextFunction, Request, Response } from "express";
+import { protect, allowAllRoles, allowEmployeesOnly, allowAdminAndHR } from "../middleware/auth.middleware";
+import { tenantAuth } from "../middleware/tenantAuth";
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+} from "../controllers/notificationController";
 
 const router = express.Router();
 
+// Apply auth & tenant middleware to all routes
 router.use(protect, tenantAuth);
 
-router.get('/', getMyNotifications);
-router.patch('/:id/read', markAsRead);
-router.patch('/mark-all', markAllAsRead);
-router.delete('/:id', deleteNotification);
+// GET /notifications
+router.get("/", protect, tenantAuth, allowAllRoles, getNotifications);
+
+// PATCH /notifications/:id/read
+router.patch("/:id/read", protect, tenantAuth, allowEmployeesOnly, markAsRead);
+
+// PATCH /notifications/read-all
+router.patch("/read-all", protect, tenantAuth, allowAdminAndHR, markAllAsRead);
+
+// DELETE /notifications/:id
+router.delete("/:id", protect, tenantAuth, allowAdminAndHR, deleteNotification);
 
 export default router;

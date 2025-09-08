@@ -11,271 +11,178 @@ import { sendEmail } from "../utils/emailUtil";
 import jwt, { Secret } from 'jsonwebtoken';
 import { logAudit } from "../utils/logAudit";
 import { asyncHandler } from "../middleware/asyncHandler";
-import { redisClient } from "../utils/redisClient";
+import { sendNotification } from "../utils/sendNotification";
+import mongoose from "mongoose";
 
-
-// Owner (Super Admin) creates Company + Admin
 export const createCompanyWithAdmin = asyncHandler(
-  async (req: TypedRequest<{}, {}, CreateCompanyDTO>, res: TypedResponse<AdminUserData>, next: NextFunction) => {
-    const { companyName, companyDescription, adminData } = req.body;
+  async (
+    req: TypedRequest<{}, {}, CreateCompanyDTO>,
+    res: TypedResponse<AdminUserData>,
+    next: NextFunction
+  ) => {
 
-    // Ensure company name and admin data are provided
-    if (!companyName || !adminData) {
-      return next(new ErrorResponse('Company name and admin data are required', 400));
-    }
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Check if the company already exists
-    const existingCompany = await Company.findOne({ name: companyName });
-    if (existingCompany) {
-      return next(new ErrorResponse('Company already exists', 400));
-    }
+    try {
+      const { companyName, companyDescription, adminData, branding } = req.body;
 
-    // Check if the email already exists in the database
-    const existingEmail = await User.findOne({ email: adminData.email.toLowerCase().trim() }) as IUser;
-    if (existingEmail) {
-      return next(new ErrorResponse('Email is already registered. Please use a different email address.', 400));
-    }
-
-    // Create the company
-   const company = await Company.create({
-      name: companyName,
-      description: companyDescription || '',
-      roles: 'admin',
-      department: 'admin',
-      status: 'active',
-      branding: {
-        displayName: companyName,
-        logoUrl: '',
-        primaryColor: '#030577ab',
+      if (!companyName || !adminData) {
+        await session.abortTransaction();
+        return next(
+          new ErrorResponse("Company name and admin data are required", 400)
+        );
       }
-    });
 
-    // Create the admin user linked to the company
-    const adminUser = await User.create({
-      firstName: adminData.firstName,
-      lastName: adminData.lastName,
-      middleName: adminData.middleName,
-      email: adminData.email.toLowerCase().trim(),
-      role: 'admin',
-      department:"admin",
-      company: company.id,      
-      status:'active'
-    });
+      // 🔍 Check if the company already exists
+      const existingCompany = await Company.findOne({ name: companyName });
+      if (existingCompany) {
+        await session.abortTransaction();
+        return next(new ErrorResponse("Company already exists", 400));
+      }
 
-    // Now, generate the activation token and activation link after the user is created
-    // const {activationCode, token } = createActivationToken(adminUser);  // Passing the actual adminUser object
-    const {activationCode, token } = accessToken(adminUser); 
-    const activationLink = createActivationLink(token);
+      // 🔍 Check if the email already exists
+      const existingEmail = await User.findOne({
+        email: adminData.email.toLowerCase().trim(),
+      });
+      if (existingEmail) {
+        await session.abortTransaction();
+        return next(
+          new ErrorResponse(
+            "Email is already registered. Please use a different email address.",
+            400
+          )
+        );
+      }
 
-    // Decode the token to check for expiry and calculate time left
-    const decoded = jwt.decode(token) as { exp: number };
+      // 🏢 Create company (inside transaction)
+      const company = await Company.create(
+        [
+          {
+            name: companyName,
+            description: companyDescription || "",
+            roles: "admin",
+            department: "admin",
+            status: "active",
+            branding: {
+              displayName: branding?.displayName || companyName,
+              logoUrl: branding?.logoUrl || "",
+              primaryColor: branding?.primaryColor || "#030577ab",
+            },
+          },
+        ],
+        { session }
+      ).then((res) => res[0]);
 
-    if (!decoded || !decoded.exp) {
-      return next(new ErrorResponse('Invalid token or missing expiration', 500));
+      // 👤 Create admin user (inside transaction)
+      const adminUser = await User.create(
+        [
+          {
+            staffId: adminData.staffId,
+            title: adminData.title,
+            gender: adminData.gender,
+            firstName: adminData.firstName,
+            lastName: adminData.lastName,
+            middleName: adminData.middleName,
+            email: adminData.email.toLowerCase().trim(),
+            role: "admin",
+            department: "admin",
+            company: company._id,
+            status: "active",
+          },
+        ],
+        { session }
+      ).then((res) => res[0]);
+
+      // 🔐 Generate tokens
+      const { activationCode, token } = accessToken(adminUser);
+      const activationLink = createActivationLink(token);
+      const decoded = jwt.decode(token) as { exp: number };
+
+      if (!decoded?.exp) {
+        await session.abortTransaction();
+        return next(
+          new ErrorResponse("Invalid token or missing expiration", 500)
+        );
+      }
+
+      const expiryTimestamp = decoded.exp * 1000;
+      const minutesLeft = Math.ceil(
+        (expiryTimestamp - Date.now()) / (60 * 1000)
+      );
+      const currentYear = new Date().getFullYear();
+
+      // 📩 Send activation notification (email + notification system)
+      await sendNotification({
+        user: adminUser,
+        type: "ACCOUNT_ACTIVATION",
+        title: "Activate Your Account",
+        message:
+          "Your company admin account has been created. Please activate it.",
+        emailSubject: "Activate Your Account",
+        emailTemplate: "loginAdmin-link.ejs",
+        emailData: {
+          activationLink,
+          expiresAt: `in ${minutesLeft} minute${
+            minutesLeft !== 1 ? "s" : ""
+          }`,
+          defaultPassword: activationCode,
+          companyName: company?.branding?.displayName || company?.name,
+          logoUrl: company?.branding?.logoUrl,
+          primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+          currentYear,
+        },
+      });
+
+      // 📝 Log audit
+      await logAudit({
+        userId: adminUser.id,
+        action: "ROLE_CREATED",
+        status: "SUCCESS",
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+
+      // ✅ Commit transaction if everything succeeded
+      await session.commitTransaction();
+
+      const companyObj: CompanyData = {
+        id: company.id.toString(),
+        name: company.name,
+        description: company.description || "",
+        roles: "admin",
+        status: "active",
+        department: company.department,
+      };
+
+      const adminUserObj: UserData = {
+        id: adminUser.id.toString(),
+        email: adminUser.email,
+        role: adminUser.role,
+        department: adminUser.department,
+        token,
+      };
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Company and admin created successfully. Activation email sent.",
+        data: {
+          company: companyObj,
+          adminUser: adminUserObj,
+        },
+      });
+    } catch (err) {
+      // ❌ Rollback on any error
+      await session.abortTransaction();
+      next(err);
+    } finally {
+      session.endSession();
     }
-
-    const expiryTimestamp = decoded.exp * 1000; // Convert from seconds to milliseconds
-    const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-     const  currentYear =  new Date().getFullYear();
-
-        // 🔐 Save 2FA code and token in Redis
-    // await redisClient.set(
-    //   `2fa:${adminUser.email}`,
-    //   JSON.stringify({ code: activationCode, token }),
-    //   'EX',
-    //   1800 // 30 minutes
-    // );
-
-
-    // Prepare email data
-    const emailData = {
-      name: adminUser.firstName,
-      activationLink, // Include the activation link
-      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-      defaultPassword: activationCode,
-      companyName: company?.branding?.displayName || company?.name,
-      logoUrl: company?.branding?.logoUrl ,
-      primaryColor: company?.branding?.primaryColor || "#0621b6b0",
-      currentYear
-    };
-
-    // Send the activation email
-    const emailSent = await sendEmail(
-      adminUser.email, 
-      'Activate Your Account',
-      'loginAdmin-link.ejs', 
-      emailData
-    );
-
-
-    if (!emailSent) {
-      return next(new ErrorResponse('Failed to send activation email', 500));
-    }
-
-    // Log the action
-    await logAudit({
-      userId: adminUser.id,
-      action: 'ROLE_CREATED', 
-      status: 'SUCCESS',
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
-    // Map company and adminUser to match the CompanyData and UserData interfaces
-    const companyObj: CompanyData = {
-      id: company.id.toString(),
-      name: company.name,
-      description: company.description || '',
-      roles: "admin",
-      status: "active",
-      department: company.department,
-    };
-
-    const adminUserObj: UserData = {
-      id: adminUser.id.toString(),
-      email: adminUser.email,
-      role: adminUser.role,
-      department: adminUser.department,
-      token,
-    };
-
-
-
-    // Send the response with company and admin user data
-    res.status(201).json({
-      success: true,
-      message: 'Company and admin created successfully. Activation email sent.',
-      data: {
-        company: companyObj,
-        adminUser: adminUserObj,
-      },
-    });
   }
 );
 
-type FullyPopulatedUser = Omit<IUser, 'company' | 'user'> & { company: ICompany; user: IUser };
 
-
-// export const createCompanyWithAdmin = asyncHandler(
-//   async (
-//     req: TypedRequest<{}, {}, CreateCompanyDTO>,
-//     res: TypedResponse<AdminUserData>,
-//     next: NextFunction
-//   ) => {
-//     const { companyName, companyDescription, adminData } = req.body;
-
-//     if (!companyName || !adminData) {
-//       return next(new ErrorResponse('Company name and admin data are required', 400));
-//     }
-
-//     const existingCompany = await Company.findOne({ name: companyName });
-//     if (existingCompany) {
-//       return next(new ErrorResponse('Company already exists', 400));
-//     }
-
-//     const existingEmail = await User.findOne({ email: adminData.email.toLowerCase().trim() }) as IUser;
-//     if (existingEmail) {
-//       return next(new ErrorResponse('Email is already registered. Please use a different email address.', 400));
-//     }
-
-//     // ✅ Create company
-//     const company = await Company.create({
-//       name: companyName,
-//       description: companyDescription || '',
-//       roles: 'admin',
-//       department: 'admin',
-//       status: 'active',
-//       branding: {
-//         displayName: companyName,
-//         logoUrl: '',
-//         primaryColor: '#030577ab',
-//       }
-//     });
-
-//     // ✅ Create admin user
-//     const adminUser = await User.create({
-//       firstName: adminData.firstName,
-//       lastName: adminData.lastName,
-//       middleName: adminData.middleName,
-//       email: adminData.email.toLowerCase().trim(),
-//       role: 'admin',
-//       department: 'admin',
-//       company: company.id,
-//       status: 'active'
-//     });
-
-//     // ✅ Generate token + activation
-//     const { activationCode, token } = accessToken(adminUser);
-//     const activationLink = createActivationLink(token);
-
-//     const decoded = jwt.decode(token) as { exp: number };
-//     if (!decoded || !decoded.exp) {
-//       return next(new ErrorResponse('Invalid token or missing expiration', 500));
-//     }
-
-//     const expiryTimestamp = decoded.exp * 1000;
-//     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-
-//     // ✅ Email data
-//     const emailData = {
-//       name: adminUser.firstName,
-//       activationLink,
-//       expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-//       defaultPassword: activationCode,
-//       companyName: company.branding?.displayName || company.name,
-//       logoUrl: company.branding?.logoUrl || '',
-//       primaryColor: company.branding?.primaryColor || '#0621b6b0',
-//     };
-
-//     const emailSent = await sendEmail(
-//       adminUser.email,
-//       'Activate Your FundMeCryptos Account',
-//       'loginAdmin-link.ejs',
-//       emailData
-//     );
-
-//     if (!emailSent) {
-//       return next(new ErrorResponse('Failed to send activation email', 500));
-//     }
-
-//     await logAudit({
-//       userId: adminUser.id,
-//       action: 'ROLE_CREATED',
-//       status: 'SUCCESS',
-//       ip: req.ip,
-//       userAgent: req.get('user-agent'),
-//     });
-
-//     // ✅ Shape response
-//     const companyObj: CompanyData = {
-//       id: company.id.toString(),
-//       name: company.name,
-//       description: company.description || '',
-//       roles: company.roles,
-//       department: company.department,
-//       status: company.status,
-//     };
-
-//     const adminUserObj: UserData = {
-//       id: adminUser.id.toString(),
-//       email: adminUser.email,
-//       role: adminUser.role,
-//       department: adminUser.department,
-//       token,
-//     };
-
-//     res.status(201).json({
-//       success: true,
-//       message: 'Company and admin created successfully. Activation email sent.',
-//       data: {
-//         company: companyObj,
-//         adminUser: adminUserObj,
-//       },
-//     });
-//   }
-// );
-
-// Function to handle resend of the activation link if expired
 export const resendActivationLink = asyncHandler(
   async (req: TypedRequest<{}, {}, EmailDTO>, res: TypedResponse<{user: IUser}>, next: NextFunction) => {
     const { email } = req.body;  // Expecting email in the request body

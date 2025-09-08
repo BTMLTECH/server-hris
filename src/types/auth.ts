@@ -1,6 +1,5 @@
-import { IAttendance } from "../models/Attendance";
-import { ICompany } from "../models/Company";
-import { IUser } from "../models/user.model";
+
+import { AccountInfo, IUser, NextOfKin } from "../models/user.model";
 import { PasswordConfig } from "../utils/passwordValidator";
 
 
@@ -18,21 +17,7 @@ export interface Verify2FADTO {
   email: string;
   code: string;
 }
-export interface InviteUserDTO {
-firstName: string;
- lastName: string;
- middleName: string;
- email: string;
- department: string;
- biometryId: string
- role : string;
-  startDate: string;
-  salary: number;
-  phoneNumber: string;
-  dateOfBirth: string;
-  position: string;
-  address: string  
-  status: string;}
+
   
 export interface SetupPasswordDTO {
 newPassword: string;
@@ -56,12 +41,7 @@ export interface CompanyRole {
 }
 
 
-export interface AdminUserInput {
-  firstName: string;
-  lastName: string;
-  middleName?: string;
-  email: string;
-}
+
 
 export interface UserData {
   id: string;
@@ -84,7 +64,15 @@ export interface CompanyBranding {
   logoUrl?: string;
   primaryColor?: string;
 }
-
+export interface AdminUserInput {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  email: string;
+  title: "Mr" | "Mrs" | "Ms" | "Dr" | "Prof";
+  gender: "male" | "female";
+  staffId: string;
+}
 export interface CreateCompanyDTO {
   companyName: string;
   companyDescription?: string;
@@ -137,9 +125,70 @@ export interface IActivationCode {
 
 
 export interface UserListResponse {
-
   count: number;
   data: IUser[];
 };
 
 
+export interface IOnboardingTask {
+  name: string;
+  category: 'training' | 'services' | 'device';
+  completed: boolean;
+  completedAt?: string; 
+}
+
+export interface IOnboardingRequirement {
+  _id?: string;
+  employee: string; 
+  department: string;
+  tasks: IOnboardingTask[];
+  createdAt: string;
+}
+
+export interface PaginatedProfilesResponse {
+  data: any;  
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+  count: number;
+}
+
+
+
+
+
+export interface InviteUserDTO {
+  staffId: string;
+  title: IUser["title"]; 
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  gender: IUser["gender"]; 
+  dateOfBirth?: string | Date;
+  stateOfOrigin?: string;
+  address?: string;
+  city?: string;
+  mobile?: string;
+  email: string;
+  department: IUser["department"];
+  position?: string;
+  officeBranch?: IUser["officeBranch"];
+  employmentDate?: string | Date;
+  accountInfo?: AccountInfo;
+  role: IUser["role"];
+  nextOfKin?: NextOfKin;
+
+  requirements?: Array<{
+    department: string;
+    tasks: Array<{
+      name: string;
+      category: string;
+      completed?: boolean;
+      completedAt?: string | Date;
+    }>;
+    createdAt?: string | Date;
+  }>;
+}

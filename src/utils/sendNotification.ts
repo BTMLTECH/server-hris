@@ -1,20 +1,22 @@
-import Notification, { INotification } from '../models/Notification';
-import { IUser } from '../models/user.model';
-import { sendEmail } from './emailUtil';
+import { ICompany } from "../models/Company";
+import Notification, { INotification } from "../models/Notification";
+import { IUser } from "../models/user.model";
+import { sendEmail } from "./emailUtil";
+import { Server as SocketIOServer } from "socket.io";
 
 
-interface NotificationOptions  {
+declare global {
+  var io: SocketIOServer | undefined;
+}
+
+interface SendNotificationParams {
   user: IUser;
-  type: | 'INFO'| 'WARNING'| 'ALERT'| 'NEW_LEAVE_REQUEST' 
-  | 'LEAVE_AWAITING_REVIEW' | 'LEAVE_APPROVED' | 'LEAVE_REJECTED' 
-  | 'LOAN_APPROVED' | 'LOAN_AWAITING_REVIEW' | 'NEW_LOAN_REQUEST'
-   | 'LOAN_REJECTED' | 'LOAN_REPAYMENT' | 'NEW_HANDOVER' |'NEW_APPRAISAL' 
-   | 'APPRAISAL_APPROVED' | 'APPRAISAL_REJECTED' | 'PAYSLIP' | 'NEW_PAYROLL';
+  type: string;
   title: string;
   message: string;
   metadata?: Record<string, any>;
   emailSubject?: string;
-  emailTemplate?: string; // like 'absent-notice.ejs'
+  emailTemplate?: string;
   emailData?: Record<string, any>;
 }
 
@@ -27,21 +29,31 @@ export const sendNotification = async ({
   emailSubject,
   emailTemplate,
   emailData,
-}: NotificationOptions) => {
-  // Save in database
-  await Notification.create({
+}: SendNotificationParams): Promise<INotification> => {
+  const notification = await Notification.create({
     user: user._id,
+    company: user.company?._id,
     type,
     title,
     message,
     metadata,
+    read: false,
   });
 
-  // Optionally send email
+  // 2. Send email if provided
   if (emailSubject && emailTemplate) {
     await sendEmail(user.email, emailSubject, emailTemplate, {
       name: user.firstName,
       ...emailData,
     });
   }
+
+  // 3. Emit real-time event
+  const io = globalThis.io as any;
+  if (io && user._id) {
+    const roomId = user._id.toString();
+    io.to(roomId).emit("notification:new", notification.toObject());
+  }
+
+  return notification;
 };

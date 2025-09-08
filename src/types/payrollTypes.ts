@@ -1,4 +1,4 @@
-import { IPayroll, ISalaryComponent } from "../models/Payroll";
+
 
 export interface AllowanceOrDeduction {
   title: string;
@@ -14,10 +14,7 @@ export interface CreatePayrollDTO {
 }
 
 
-export interface CreatePayrollResponse{
-  data: IPayroll
-  
-}
+
 export interface CreateBulkPayrollResponse{
    created: string[];
   failed: string[];   

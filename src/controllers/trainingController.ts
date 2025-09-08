@@ -91,11 +91,7 @@ export const createTraining = asyncHandler(async (
 
 
 export const submitFeedback = asyncHandler(async (
-  req: TypedRequest<
-    { id: string },
-    {},
-    { answers: { question: string; response: string }[]; additionalComments?: string }
-  >,
+  req: TypedRequest<  { id?: string },   {},  { answers: { question: string; response: string }[]; additionalComments?: string }>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {

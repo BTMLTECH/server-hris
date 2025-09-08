@@ -1,15 +1,4 @@
-// // src/types/express.d.ts or src/interfaces/TypedRequest.ts
 
-// import { Request } from 'express';
-// import { IUser } from '../models/user.model';
-// import { ICompany } from '../models/Company';
-
-// export interface TypedRequest extends Request {
-//   user?: IUser;
-//   company?: ICompany;
-// }
-
-// src/types/express.d.ts or src/interfaces/TypedRequest.ts
 
 import { Request } from 'express';
 import { IUser } from '../models/user.model';

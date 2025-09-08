@@ -232,7 +232,7 @@ export class ExportService {
         doc.text(fullName.trim(), xPositions[1], y);
         doc.text(emp.email, xPositions[2], y);
         doc.text(emp.department, xPositions[3], y);
-        doc.text(emp.position, xPositions[4], y);
+        doc.text(emp.position || "", xPositions[4], y);
         doc.text(emp.officeBranch || "", xPositions[5], y);
         doc.text(emp.level || "", xPositions[6], y);
         doc.text(emp.mobile || "", xPositions[7], y);
@@ -340,7 +340,9 @@ export class ExportService {
     if (barChart || pieChart) {
       const chartSheet = workbook.addWorksheet("Charts");
       if (barChart) {
-        const barImageId = workbook.addImage({   buffer: Buffer.from(barChart), extension: "png" });
+        const barImageId = workbook.addImage({ 
+            buffer: Buffer.from(barChart), 
+            extension: "png" });
         chartSheet.addImage(barImageId, "A1:J20");
       }
       if (pieChart) {
@@ -441,9 +443,9 @@ static async generatePayrollPDF(
 
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const chunks: Uint8Array[] = [];
-      doc.on("data", (c) => chunks.push(c));
+      doc.on("data", (c: Uint8Array<ArrayBufferLike>) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", (err) => reject(err));
+      doc.on("error", (err: any) => reject(err));
       const robotoRegular = path.resolve(process.cwd(), "public/assets/fonts/Roboto-Regular.ttf");
       const robotoBold = path.resolve(process.cwd(), "public/assets/fonts/Roboto-Bold.ttf");
 

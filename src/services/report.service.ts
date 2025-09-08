@@ -217,7 +217,7 @@ private async generateAttendanceReport(
       if (!rec.user) {
         throw new Error("Attendance record missing populated user");
       }
-      return rec as IAttendance & { user: IUser };
+      return rec as unknown as IAttendance & { user: IUser };
     });
 
     // Summary

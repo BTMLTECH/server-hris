@@ -1,106 +1,117 @@
 import { NextFunction } from 'express';
 import jwt, { JwtPayload, Secret } from 'jsonwebtoken';
-import User, { IUser } from '../models/user.model';
+import User, {  IUser } from '../models/user.model';
 import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
 import { logAudit } from '../utils/logAudit';
-import { createActivationLink, generateRandomPassword, PasswordConfig, validatePassword } from '../utils/passwordValidator';
+import { createActivationLink, generateRandomPassword, validatePassword } from '../utils/passwordValidator';
 import { redisClient } from '../utils/redisClient';
 import { AdminUserData, AuthData, BulkImportResponse, IActivationCode, InviteUserDTO, LoginDTO, RegisterAdminDto, SetPasswordDto, SetupPasswordDTO, SetupPasswordQuery, Verify2FADTO } from '../types/auth';
-import { ParsedUser, parseExcelUsers } from '../utils/excelParser';
+import { parseExcelUsers } from '../utils/excelParser';
 import { sendEmail } from '../utils/emailUtil';
-import { ICompany } from '../models/Company';
-import * as XLSX from 'xlsx';
+import Company, { ICompany } from '../models/Company';
 import { sendToken } from '../utils/generateToken';
-import { Types } from 'mongoose';
 import { isTokenBlacklisted } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { VALID_DEPARTMENTS } from '../utils/userHelpers';
+import { calculatePayroll } from '../utils/payrollCalculator';
+import PayrollNew from '../models/PayrollNew';
+import { OnboardingRequirement } from '../models/OnboardingRequirement';
+import { sendNotification } from '../utils/sendNotification';
 
 
 
+export const login = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, LoginDTO>,
+    res: TypedResponse<AuthData>,
+    next: NextFunction
+  ) => {
+    const { email, password } = req.body;
 
+    const user = await User.findOne({ email })
+      .select("+password")
+      .populate<{company: ICompany}>("company");
 
-
-export const login = asyncHandler(async (req: TypedRequest<{}, {}, LoginDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
-    const { email, password } = req.body; 
-
-
-    const user = await User.findOne({ email }).select('+password').populate('company') as unknown as IUser & { company: ICompany };
     if (!user || !user.isActive) {
-        return next(new ErrorResponse('Invalid credentials or inactive user', 401));
+      return next(new ErrorResponse("Invalid credentials or inactive user", 401));
     }
+
     if (user.lockUntil && user.lockUntil > new Date()) {
-        return next(new ErrorResponse('Account locked. Try again later.', 403));
+      return next(new ErrorResponse("Account locked. Try again later.", 403));
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-        user.failedLoginAttempts++;
-        if (user.failedLoginAttempts >= 5) {
-            user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
-        }
-        await user.save();
-        return next(new ErrorResponse('Invalid credentials', 401));
+      user.failedLoginAttempts++;
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 mins lock
+      }
+      await user.save();
+      return next(new ErrorResponse("Invalid credentials", 401));
     }
 
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
 
-    // Generate the token and activation code
     const { token, activationCode } = createActivationToken(user); 
 
-    // Decode the token and extract the user information
-    const decoded = jwt.decode(token) as { user: { _id: string }; exp: number };
-
+    const decoded: any = jwt.decode(token);
     if (!decoded || !decoded.user || !decoded.user._id || !decoded.exp) {
-        return next(new ErrorResponse('Invalid token or missing expiration', 500));
+      return next(new ErrorResponse("Invalid token or missing expiration", 500));
     }
 
-    const expiryTimestamp = decoded.exp * 1000; // Convert from seconds to milliseconds
+    const expiryTimestamp = decoded.exp * 1000;
     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-    
     const company = req.company;
+
     const emailData = {
-        name: user.firstName,
-        code: activationCode,
-        expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-        companyName: user.company?.branding?.displayName || user.company?.name,
-        logoUrl: user.company?.branding?.logoUrl,
-        primaryColor: user.company?.branding?.primaryColor || "#0621b6b0",
+      name: user.firstName,
+      code: activationCode,
+      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}`,
+      companyName: user.company?.branding?.displayName || user.company?.name,
+      logoUrl: user.company?.branding?.logoUrl,
+      primaryColor: user.company?.branding?.primaryColor || "#0621b6b0",
     };
 
-    await redisClient.set(`2fa:${user.email}`, JSON.stringify({ code: activationCode, token }), 'EX', 1800);
-
+    // ✅ Save 2FA token in Redis for both real and test accounts
+    await redisClient.set(
+      `2fa:${user.email}`,
+      JSON.stringify({ code: activationCode, token }),
+      "EX",
+      1800
+    );
 
     const emailSent = await sendEmail(
-        user.email,
-        'Your 2FA Code',
-        '2fa-code.ejs', // Ensure this template exists in the correct folder
-        emailData
+      user.email,
+      "Your 2FA Code",
+      "2fa-code.ejs",
+      emailData
     );
 
     if (!emailSent) {
-        return next(new ErrorResponse('Failed to send 2FA email', 500));
+      return next(new ErrorResponse("Failed to send 2FA email", 500));
     }
 
-    // Log the audit with the decoded user ID
     await logAudit({
-        userId: decoded.user._id, // Use decoded.user._id to access the user ID
-        action: 'LOGIN',
-        status: 'SUCCESS',
-        ip: req.ip,
-        userAgent: req.get('user-agent'),
-    });
-        res.status(200).json({
-        success: true,
-        message: '2FA code sent to your email',
-        data:{
-          token
-        }
+      userId: decoded.user._id,
+      action: "LOGIN",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
     });
 
-});
+    res.status(200).json({
+      success: true,
+      message: "2FA code sent to your email",
+      data: {
+        token,
+      },
+    });
+  }
+);
+
 
 
 export const createActivationToken = (user: IUser): IActivationCode => {
@@ -135,178 +146,193 @@ export const accessToken = (user: IUser): IActivationCode => {
 };
 
 
-export const registerAdmin = asyncHandler(async (
-  req: TypedRequest<{},{}, RegisterAdminDto>,
-  res: TypedResponse<AuthData>,
-  next: NextFunction
-) => {
-  const {
-    firstName,
-    lastName,
-    middleName,
-    email,
-    password,
-    role,
-    passwordConfig,
-  } = req.body;
-  // Basic field check
-  if (!email || !password || !firstName || !lastName || !role) {
-    return next(new ErrorResponse('Missing required fields', 400));
+export const registerAdmin = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, RegisterAdminDto>,
+    res: TypedResponse<{}>,
+    next: NextFunction
+  ) => {
+    const {
+      firstName,
+      lastName,
+      middleName,
+      email,
+      password,
+      role,
+      passwordConfig,
+    } = req.body;
+
+    // Basic field check
+    if (!email || !password || !firstName || !lastName || !role) {
+      return next(new ErrorResponse("Missing required fields", 400));
+    }
+
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check for existing user
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return next(new ErrorResponse("User already exists", 400));
+    }
+
+    // Validate password
+    const policy = passwordConfig || {
+      minLength: 8,
+      requireUppercase: true,
+      requireNumber: true,
+      requireSpecialChar: true,
+    };
+
+    if (!validatePassword(password, policy)) {
+      return next(
+        new ErrorResponse("Password does not meet security policy", 400)
+      );
+    }
+
+    // Create user
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      middleName,
+      email: normalizedEmail,
+      password,
+      role,
+      isActive: true,
+    });
+
+    await logAudit({
+      userId: newUser.id,
+      action: "REGISTER_ADMIN",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Admin registered successfully",
+    });
   }
-
-  // Normalize email
-  const normalizedEmail = email.trim().toLowerCase();
-
-  // Check for existing user
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return next(new ErrorResponse('User already exists', 400));
-
-  // Validate password
-  const policy = passwordConfig || {
-    minLength: 8,
-    requireUppercase: true,
-    requireNumber: true,
-    requireSpecialChar: true,
-  };
-
-  if (!validatePassword(password, policy)) {
-    return next(new ErrorResponse('Password does not meet security policy', 400));
-  }
-
-  // Create user
-  const newUser = await User.create({
-    firstName,
-    lastName,
-    middleName,
-    email: normalizedEmail,
-    password,
-    role,
-    isActive: true,
-  });
-
-  await logAudit({
-    userId: newUser.id,
-    action: 'REGISTER_ADMIN',
-    status: 'SUCCESS',
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  return res.status(201).json({
-    success: true,
-    message: 'Admin registered successfully',
-  });
-});
+);
 
 
-export const verify2FA = asyncHandler(async (
-  req: TypedRequest<{} , {},  Verify2FADTO>,
-  res: TypedResponse<AuthData>,
-  next: NextFunction
-) => {
-  const { email, code } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user) return next(new ErrorResponse('Invalid user', 400));
-  const stored = await redisClient.get(`2fa:${email}`);
-  if (!stored) return next(new ErrorResponse('2FA code expired or not found', 400));
+export const verify2FA = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, Verify2FADTO>,
+    res: TypedResponse<{}>,
+    next: NextFunction
+  ) => {
+    const { email, code } = req.body;
 
-  let parsed: { code: string; token: string };
-  try {
-    parsed = JSON.parse(stored);
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(new ErrorResponse("Invalid user", 400));
+    }
+
+    const stored = await redisClient.get(`2fa:${email}`);
+    if (!stored) {
+      return next(new ErrorResponse("2FA code expired or not found", 400));
+    }
+
+    let parsed: { code: string; token: string };
+    try {
+      parsed = JSON.parse(stored);
     } catch {
-    return next(new ErrorResponse('Stored 2FA data is malformed', 500));
+      return next(new ErrorResponse("Stored 2FA data is malformed", 500));
+    }
+
+    if (parsed.code !== code) {
+      return next(new ErrorResponse("Invalid 2FA code", 400));
+    }
+
+    // Verify JWT expiration
+    try {
+      jwt.verify(parsed.token, process.env.JWT_SECRET as string);
+    } catch (err) {
+      return next(
+        new ErrorResponse("2FA token has expired or is invalid", 401)
+      );
+    }
+
+    await redisClient.del(`2fa:${email}`);
+
+    await logAudit({
+      userId: user._id,
+      action: "VERIFY_2FA",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    sendToken(user, 200, res, next);
   }
+);
 
-  if (parsed.code !== code) {
-    return next(new ErrorResponse('Invalid 2FA code', 400));
+
+export const resend2FACode = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, {email: string}>,
+    res: TypedResponse<{}>,
+    next: NextFunction
+  ) => {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email }).populate<{company: ICompany}>("company");
+    if (!user || !user.isActive) {
+      return next(new ErrorResponse("Invalid or inactive user", 400));
+    }
+
+    const { token, activationCode } = createActivationToken(user);
+    const decoded = jwt.decode(token) as any;
+    if (!decoded?.user?._id || !decoded.exp) {
+      return next(new ErrorResponse("Token decoding failed", 500));
+    }
+
+    const expiryTimestamp = decoded.exp * 1000;
+    const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+
+    const emailData = {
+      name: user.firstName,
+      code: activationCode,
+      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}`,
+      companyName: user.company?.branding?.displayName || user.company?.name,
+      logoUrl: user.company?.branding?.logoUrl,
+      primaryColor: user.company?.branding?.primaryColor || "#0621b6b0",
+    };
+
+    await redisClient.set(
+      `2fa:${user.email}`,
+      JSON.stringify({ code: activationCode, token }),
+      "EX",
+      1800
+    );
+
+    const emailSent = await sendEmail(
+      user.email,
+      "Your 2FA Code (Resent)",
+      "2fa-code.ejs",
+      emailData
+    );
+    if (!emailSent) {
+      return next(new ErrorResponse("Failed to send 2FA email", 500));
+    }
+
+    await logAudit({
+      userId: decoded.user._id,
+      action: "RESEND_2FA_CODE",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    res.status(200).json({
+      message: "2FA code resent successfully",
+      success: true,
+    });
   }
-
-  // Verify JWT expiration
-  try {
-    jwt.verify(parsed.token, process.env.JWT_SECRET as Secret);
-  } catch (err) {
-    return next(new ErrorResponse('2FA token has expired or is invalid', 401));
-  }
-
-  // Clean up
-  await redisClient.del(`2fa:${email}`);
-
-  // Audit log
-  await logAudit({
-    userId: user?._id,
-    action: 'VERIFY_2FA',
-    status: 'SUCCESS',
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-  sendToken(user, 200, res, next)
-});
-
-
-// controllers/authController.ts
-
-export const resend2FACode = asyncHandler(async (
-  req: TypedRequest<{}, {}, { email: string }>,
-  res: TypedResponse<{ message: string }>,
-  next: NextFunction
-) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email }).populate('company') as unknown as IUser & { company: ICompany };;
-  if (!user || !user.isActive) {
-    return next(new ErrorResponse('Invalid or inactive user', 400));
-  }
-
-  const { token, activationCode } = createActivationToken(user);
-
-  const decoded = jwt.decode(token) as { user: { _id: string }; exp: number };
-
-  if (!decoded?.user?._id || !decoded.exp) {
-    return next(new ErrorResponse('Token decoding failed', 500));
-  }
-
-  const expiryTimestamp = decoded.exp * 1000;
-  const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-  const company = req.company;
-
-  const emailData = {
-    name: user.firstName,
-    code: activationCode,
-    expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-    companyName: user.company?.branding?.displayName || user.company?.name,
-    logoUrl: user.company?.branding?.logoUrl,
-    primaryColor: user.company?.branding?.primaryColor || "#0621b6b0",
-  };
-
- await redisClient.set(`2fa:${user.email}`, JSON.stringify({ code: activationCode, token }), 'EX', 1800);
-
-
-  const emailSent = await sendEmail(
-    user.email,
-    'Your 2FA Code (Resent)',
-    '2fa-code.ejs',
-    emailData
-  );
-
-  if (!emailSent) {
-    return next(new ErrorResponse('Failed to send 2FA email', 500));
-  }
-
-  await logAudit({
-    userId: decoded.user._id,
-    action: 'RESEND_2FA_CODE',
-    status: 'SUCCESS',
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  res.status(200).json({
-    message: '2FA code resent successfully',
-    success: false
-  });
-});
-
+);
 
 
 
@@ -334,22 +360,7 @@ export const requestPassword = asyncHandler(async (
   }
   // Send email to admin notifying them about the request
   try {
-    // const emailData = {
-    //   userName: user.firstName,
-    //   email: user.email,
-    // };
-
-    // const emailSent = await sendEmail(
-    //   process.env.SMPT_MAIL!, // Admin's email
-    //   "New Password Reset Request",
-    //   "password-reset-request.ejs", // Email template to notify admin
-    //   emailData
-    // );
-
-    // if (!emailSent) {
-    //   return next(new ErrorResponse("Failed to notify admin about reset request", 500));
-    // }
-
+  
     // Log the reset request for audit
     await logAudit({
       userId: user._id,
@@ -405,10 +416,10 @@ export const sendActivationPasswordLink = asyncHandler(
       activationLink: createActivationLink(token),
       expiresAt,
       defaultPassword: activationCode,      
-    companyName: company?.branding?.displayName || company?.name,
-    logoUrl: company?.branding?.logoUrl ,
-    primaryColor: company?.branding?.primaryColor || "#0621b6b0",
-    };
+      companyName: company?.branding?.displayName || company?.name,
+      logoUrl: company?.branding?.logoUrl ,
+      primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+      };
 
     // Send the email
     const emailSent = await sendEmail(
@@ -440,216 +451,538 @@ export const sendActivationPasswordLink = asyncHandler(
 );
 
 
-export const inviteUser = asyncHandler ( async (req: TypedRequest<{},{}, InviteUserDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
-  
-  const company = req.company;
-  const companyId = company?._id;
-  const userId = req.user?._id;
-    const tempBiometry =  generateRandomPassword(8)
-    const { firstName, lastName, middleName, email, department, role ,  
-      startDate,
-      salary,
-      phoneNumber,
-      dateOfBirth,
-      position,
-      address 
-    } = req.body;
 
-    if (!email || !role || !firstName || !lastName || !department || !startDate || !salary || !phoneNumber || !dateOfBirth || !position || !address) {
-      return next(new ErrorResponse('Missing required fields', 400));
-    }
 
-    const normalizedEmail = email.toLowerCase().trim();
 
-    const existing = await User.findOne({ email:normalizedEmail  });
-    if (existing) return next(new ErrorResponse('User already exists', 400));
 
-    
+export const inviteUser = asyncHandler(
+  async (
+    req: TypedRequest<{}, {}, InviteUserDTO>,
+    res: TypedResponse<{ user: IUser }>,
+    next: NextFunction
+  ) => {
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
 
-    // Create the new user with the temporary password (Hashing will happen automatically because of the pre-save hook)
-    const newUser = await User.create({
+    const {
+      staffId,
+      title,
       firstName,
       lastName,
       middleName,
-      email:normalizedEmail,
+      gender,
+      dateOfBirth,
+      stateOfOrigin,
+      address,
+      city,
+      mobile,
+      email,
       department,
-      biometryId: tempBiometry,
+      position,
+      officeBranch,
+      employmentDate,
+      accountInfo,
       role,
-      isActive: true,
+      nextOfKin,
+      requirements,
+    } = req.body;
+
+    if (!VALID_DEPARTMENTS.includes(department)) {
+      return next(new ErrorResponse(`Invalid department: ${department}`, 400));
+    }
+
+    // Required field validation
+    if (
+      !staffId ||
+      !title ||
+      !gender ||
+      !email ||
+      !role ||
+      !firstName ||
+      !lastName ||
+      !department ||
+      !employmentDate ||
+      !mobile ||
+      !dateOfBirth ||
+      !stateOfOrigin ||
+      !city ||
+      !position ||
+      !officeBranch ||
+      !address ||
+      !accountInfo?.classLevel ||
+      !accountInfo?.basicPay ||
+      !accountInfo?.allowances ||
+      !accountInfo?.bankAccountNumber ||
+      !accountInfo?.bankName ||
+      !nextOfKin?.name ||
+      !nextOfKin?.phone ||
+      !nextOfKin?.relationship
+    ) {
+      return next(new ErrorResponse("Missing required fields", 400));
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing)
+      return next(new ErrorResponse("User already exists", 400));
+
+    // 👤 Create user
+    const newUser = await User.create({
+      staffId,
+      title,
+      gender,
+      firstName,
+      lastName,
+      middleName,
+      email: normalizedEmail,
+      department,
+      role,
+      isActive: false,
       company: companyId,
-      startDate,
-      salary,
-      phoneNumber,
+      employmentDate,
+      mobile,
       dateOfBirth,
       position,
       address,
-      status: 'active',
+      city,
+      stateOfOrigin,
+      accountInfo,
+      nextOfKin,
+      status: "active",
     });
 
-          // Now, generate the activation token and activation link after the user is created
-          const {activationCode, token } = accessToken(newUser);  // Passing the actual adminUser object
-          const setupLink = createActivationLink(token);
-          
-      
-          // Decode the token to check for expiry and calculate time left
-          const decoded = jwt.decode(token) as { exp: number };
-      
-          if (!decoded || !decoded.exp) {
-            return next(new ErrorResponse('Invalid token or missing expiration', 500));
-          }
-      
-          const expiryTimestamp = decoded.exp * 1000; // Convert from seconds to milliseconds
-          const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+    // Payroll creation
+    const payrollResult = calculatePayroll({
+      basicSalary: accountInfo.basicPay!,
+      totalAllowances: accountInfo.allowances!,
+    });
 
-    // const setupLink = `${process.env.FRONTEND_URL}/setup-password/${normalizedEmail}`;
-      // Prepare data for the email template
-      const emailData = {
-        name: firstName ,
+    await PayrollNew.create({
+      user: newUser._id,
+      classLevel: accountInfo.classLevel,
+      basicSalary: accountInfo.basicPay,
+      totalAllowances: payrollResult.totalAllowances,
+      grossSalary: payrollResult.grossSalary,
+      pension: payrollResult.pension,
+      CRA: payrollResult.CRA,
+      taxableIncome: payrollResult.taxableIncome,
+      tax: payrollResult.tax,
+      netSalary: payrollResult.netSalary,
+      taxBands: payrollResult.taxBands,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      status: "pending",
+    });
+
+    let createdRequirements: any[] = [];
+    if (requirements && requirements.length > 0) {
+      for (const req of requirements) {
+        const tasks = req.tasks.map((task) => ({
+          name: task.name,
+          category: task.category,
+          completed: Boolean(task.completed),
+          completedAt: task.completed
+            ? task.completedAt
+              ? new Date(task.completedAt)
+              : new Date()
+            : undefined,
+        }));
+
+        const doc = await OnboardingRequirement.create({
+          employee: newUser._id,
+          department: req.department,
+          tasks,
+          createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+        });
+
+        createdRequirements.push({
+          employee: doc.employee?.toString() || "",
+          department: doc.department,
+          tasks: doc.tasks.map((t) => ({
+            name: t.name,
+            category: t.category,
+            completed: t.completed,
+            completedAt: t.completedAt || undefined,
+          })),
+          createdAt: doc.createdAt,
+        });
+      }
+    }
+
+    const departmentTasks: Record<string, string[]> = {};
+    for (const req of createdRequirements) {
+      departmentTasks[req.department] = req.tasks.map((t: { name: any; }) => t.name);
+    }
+
+    await Promise.all(
+      Object.entries(departmentTasks).map(async ([dept, tasks]) => {
+        const roleToNotify = dept.toLowerCase() === "hr" ? "hr" : "teamlead";
+        const leadUser = await User.findOne({
+          department: dept,
+          role: roleToNotify,
+        });
+        if (!leadUser) return;
+
+        await sendNotification({
+          user: leadUser,
+          type: "INFO",
+          title: `New Onboarding Tasks`,
+          message: `A new staff (${firstName} ${lastName}) has the following ${dept} requirements: ${tasks.join(", ")}`,
+          emailSubject: `Onboarding Tasks for ${dept}`,
+          emailTemplate: "requirement-notification.ejs",
+          emailData: {
+            name: leadUser.firstName,
+            staffName: `${firstName} ${lastName}`,
+            department: dept,
+            tasks,
+            companyName: company?.branding?.displayName || company?.name,
+            logoUrl: company?.branding?.logoUrl,
+            primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+          },
+        });
+      })
+    );
+
+    const { activationCode, token } = (exports as any).accessToken(newUser);
+    const setupLink = createActivationLink(token);
+    const decoded = jwt.decode(token) as { exp: number };
+
+
+    if (!decoded || !decoded.exp) {
+      return next(
+        new ErrorResponse("Invalid token or missing expiration", 500)
+      );
+    }
+
+    const expiryTimestamp = decoded.exp * 1000;
+    const minutesLeft = Math.ceil(
+      (expiryTimestamp - Date.now()) / (60 * 1000)
+    );
+
+    const emailSent = await sendNotification({
+      user: newUser,
+      type: "INVITE",
+      title: "Account Setup Invitation",
+      message: `Welcome ${firstName}, please activate your account.`,
+      emailSubject: "Account Setup Invitation",
+      emailTemplate: "account-setup.ejs",
+      emailData: {
+        name: firstName,
         activationCode,
         setupLink,
-        expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-          companyName: company?.branding?.displayName || company?.name,
-          logoUrl: company?.branding?.logoUrl ,
-          primaryColor: company?.branding?.primaryColor || "#0621b6b0",
-      };
-
-      // Send email using an EJS template for consistent formatting
-      const emailSent = await sendEmail(
-        normalizedEmail,
-        'Account Setup Invitation',
-        'account-setup.ejs', // You need to create this EJS template in your email templates folder
-        emailData
-      );
-
-      // await User.findByIdAndUpdate(userId, { sendInvite: false });
-      // if (!emailSent) {
-      //   await User.findByIdAndUpdate(
-      //            newUser._id,
-      //           { sendInvite: true },
-      //           { new: true } 
-      //         );
-      //   // return next(new ErrorResponse('Failed to send account setup email', 500));
-      // }
-
-      await logAudit({
-      userId,
-      action: 'INVITE_USER', 
-      status: 'SUCCESS',
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
+        expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? "s" : ""}`,
+        companyName: company?.branding?.displayName || company?.name,
+        logoUrl: company?.branding?.logoUrl,
+        primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+      },
     });
 
+    if (emailSent) {
+      await User.findByIdAndUpdate(newUser._id, { isActive: true });
+    }
+
+    await logAudit({
+      userId,
+      action: "INVITE_USER",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
 
     res.status(201).json({
       success: true,
       message: `${role} invited successfully`,
-      data: {
-        user: newUser
-      },
+      data: { user: newUser },
     });
-
-});
-
-
-export const bulkImportUsers = asyncHandler(async (
-  req: TypedRequest,
-  res: TypedResponse<BulkImportResponse>,
-  next: NextFunction
-) => {
-  const company = req.company
-  const companyId = company?._id as Types.ObjectId;
-  const userId = req.user?._id;
-  let users: ParsedUser[] = [];
-
-  if (req.file) {
-    users = parseExcelUsers(req.file.buffer);
-  } else if (Array.isArray(req.body)) {
-    users = req.body;
-  } else {
-    return next(new ErrorResponse('Invalid input. Expecting an array or an Excel file.', 400));
   }
+);
 
-  const created: string[] = [];
-  const updated: string[] = [];
 
-  for (const user of users) {
-    const existing = await User.findOne({ email: user.email }) as IUser;
 
-    if (existing) {
-      existing.firstName = user.firstName;
-      existing.middleName = user.middleName;
-      existing.lastName = user.lastName;
-      existing.role = user.role;
-      existing.department = user.department;
-      existing.company = companyId;
-      await existing.save();
-      updated.push(user.email);
+
+
+
+export const bulkImportUsers = asyncHandler(
+  async (
+    req: TypedRequest<{}, InviteUserDTO[] | {}, {}>,
+    res: TypedResponse<BulkImportResponse>,
+    next: NextFunction
+  ) => {
+    const company = req.company;
+    const companyId = company?._id;
+    const userId = req.user?._id;
+
+    let users = [];
+
+    // 📂 Parse input
+    if (req.file) {
+      users = parseExcelUsers(req.file.buffer);
+    } else if (Array.isArray(req.body)) {
+      users = req.body;
     } else {
-      const newUser = new User({
-        ...user,
-        company: companyId,
+      return next(
+        new ErrorResponse(
+          "Invalid input. Expecting an array or an Excel file.",
+          400
+        )
+      );
+    }
+
+    const created: string[] = [];
+    const updated: string[] = [];
+
+    for (const user of users) {
+      const {
+        staffId,
+        title,
+        firstName,
+        lastName,
+        middleName,
+        gender,
+        dateOfBirth,
+        stateOfOrigin,
+        address,
+        city,
+        mobile,
+        email,
+        department,
+        position,
+        officeBranch,
+        employmentDate,
+        accountInfo,
+        role,
+        nextOfKin,
+        requirements,
+      } = user;
+
+      // 🔒 Validation
+      if (!VALID_DEPARTMENTS.includes(department)) {
+        return next(
+          new ErrorResponse(`Invalid department: ${department}`, 400)
+        );
+      }
+
+      if (
+        !staffId ||
+        !title ||
+        !gender ||
+        !email ||
+        !role ||
+        !firstName ||
+        !lastName ||
+        !department ||
+        !employmentDate ||
+        !mobile ||
+        !dateOfBirth ||
+        !stateOfOrigin ||
+        !city ||
+        !position ||
+        !officeBranch ||
+        !address ||
+        !accountInfo?.classLevel ||
+        !accountInfo?.basicPay ||
+        !accountInfo?.allowances ||
+        !accountInfo?.bankAccountNumber ||
+        !accountInfo?.bankName ||
+        !nextOfKin?.name ||
+        !nextOfKin?.phone ||
+        !nextOfKin?.relationship
+      ) {
+        return next(
+          new ErrorResponse(`Missing required fields for user ${email}`, 400)
+        );
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing) {
+        return next(
+          new ErrorResponse(`User already exists: ${normalizedEmail}`, 400)
+        );
+      }
+
+      // 👤 Create user
+      const newUser = await User.create({
+        staffId,
+        title,
+        gender,
+        firstName,
+        lastName,
+        middleName,
+        email: normalizedEmail,
+        department,
+        role,
         isActive: true,
+        company: companyId,
+        employmentDate,
+        mobile,
+        dateOfBirth,
+        position,
+        address,
+        city,
+        stateOfOrigin,
+        accountInfo,
+        nextOfKin,
+        status: "active",
       });
 
-      await newUser.save();
+      // 💰 Payroll
+      const payrollResult = calculatePayroll({
+        basicSalary: accountInfo.basicPay,
+        totalAllowances: accountInfo.allowances,
+      });
 
-      const { activationCode, token } = accessToken(newUser);
+      await PayrollNew.create({
+        user: newUser._id,
+        classLevel: accountInfo.classLevel,
+        basicSalary: accountInfo.basicPay,
+        totalAllowances: payrollResult.totalAllowances,
+        grossSalary: payrollResult.grossSalary,
+        pension: payrollResult.pension,
+        CRA: payrollResult.CRA,
+        taxableIncome: payrollResult.taxableIncome,
+        tax: payrollResult.tax,
+        company: companyId,
+        netSalary: payrollResult.netSalary,
+        taxBands: payrollResult.taxBands,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        status: "pending",
+      });
+
+      // 📋 Requirements
+      let createdRequirements: any[] = [];
+      if (requirements && requirements.length > 0) {
+        for (const req of requirements) {
+          const tasks = req.tasks.map((task: any) => ({
+            name: task.name,
+            category: task.category,
+            completed: Boolean(task.completed),
+            completedAt: task.completed
+              ? task.completedAt
+                ? new Date(task.completedAt)
+                : new Date()
+              : undefined,
+          }));
+
+          const doc = await OnboardingRequirement.create({
+            employee: newUser._id,
+            department: req.department,
+            tasks,
+            createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+          });
+
+          createdRequirements.push({
+            employee: doc.employee?.toString() || "",
+            department: doc.department,
+            tasks: doc.tasks.map((t: any) => ({
+              name: t.name,
+              category: t.category,
+              completed: t.completed,
+              completedAt: t.completedAt || undefined,
+            })),
+            createdAt: doc.createdAt,
+          });
+        }
+      }
+
+      // 2️⃣ Notify relevant roles
+      const departmentTasks: Record<string, string[]> = {};
+      for (const req of createdRequirements) {
+        departmentTasks[req.department] = req.tasks.map((t: any) => t.name);
+      }
+
+      await Promise.all(
+        Object.entries(departmentTasks).map(async ([dept, tasks]) => {
+          const roleToNotify = dept.toLowerCase() === "hr" ? "hr" : "teamlead";
+          const leadUser = await User.findOne({
+            department: dept,
+            role: roleToNotify,
+          });
+          if (!leadUser) return;
+
+          await sendNotification({
+            user: leadUser,
+            type: "INFO",
+            title: `New Onboarding Tasks`,
+            message: `A new staff (${firstName} ${lastName}) has the following ${dept} requirements: ${tasks.join(
+              ", "
+            )}`,
+            emailSubject: `Onboarding Tasks for ${dept}`,
+            emailTemplate: "requirement-notification.ejs",
+            emailData: {
+              name: leadUser.firstName,
+              staffName: `${firstName} ${lastName}`,
+              department: dept,
+              tasks,
+              companyName: company?.branding?.displayName || company?.name,
+              logoUrl: company?.branding?.logoUrl,
+              primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+            },
+          });
+        })
+      );
+
+      // 📩 Activation Notification
+      const { activationCode, token } = (exports as any).accessToken(newUser);
       const setupLink = createActivationLink(token);
+      const decoded = jwt.decode(token) as { exp?: number } | null;
 
-      const decoded = jwt.decode(token) as { exp: number };
       if (!decoded?.exp) {
-        return next(new ErrorResponse('Invalid token or missing expiration', 500));
+        return next(
+          new ErrorResponse("Invalid token or missing expiration", 500)
+        );
       }
 
       const expiryTimestamp = decoded.exp * 1000;
-      const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-
-      const emailData = {
-        name: user.firstName,
-        activationCode,
-        setupLink,
-        expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
-        companyName: company?.branding?.displayName || company?.name,
-        logoUrl: company?.branding?.logoUrl,
-        primaryColor: company?.branding?.primaryColor || "#0621b6b0",
-      };
-
-      const emailSent = await sendEmail(
-        user.email,
-        'Account Setup Invitation',
-        'account-setup.ejs',
-        emailData
+      const minutesLeft = Math.ceil(
+        (expiryTimestamp - Date.now()) / (60 * 1000)
       );
 
-      // if (!emailSent) {
-      //    await User.findByIdAndUpdate(
-      //           userId,
-      //           { sendInvite: true },
-      //           { new: true } 
-      //         );
-      // }
+      const emailSent = await sendNotification({
+        user: newUser,
+        type: "INVITE",
+        title: "Account Setup Invitation",
+        message: `Welcome ${firstName}, please activate your account.`,
+        emailSubject: "Account Setup Invitation",
+        emailTemplate: "account-setup.ejs",
+        emailData: {
+          name: firstName,
+          activationCode,
+          setupLink,
+          expiresAt: `in ${minutesLeft} minute${
+            minutesLeft !== 1 ? "s" : ""
+          }`,
+          companyName: company?.branding?.displayName || company?.name,
+          logoUrl: company?.branding?.logoUrl,
+          primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+        },
+      });
 
-      created.push(user.email);
+      created.push(normalizedEmail);
+
+      if (emailSent) {
+        await User.findByIdAndUpdate(newUser._id, { isActive: true });
+      }
     }
+
+    // 📝 Audit Log
+    await logAudit({
+      userId,
+      action: "BULK_IMPORT",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Users imported successfully.",
+      data: { created, updated },
+    });
   }
-
-  await logAudit({
-    userId: req.user?.id,
-    action: 'BULK_IMPORT',
-    status: 'SUCCESS',
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  res.status(200).json({
-    success: true,
-    message: 'Users processed successfully.',
-    data: {
-      created,
-      updated,
-    },
-  });
-});
+);
 
 export const setupPassword = asyncHandler(
   async (req: TypedRequest<{},SetupPasswordQuery, SetupPasswordDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
@@ -659,12 +992,12 @@ export const setupPassword = asyncHandler(
       return next(new ErrorResponse('Token is required', 400));
     }
 
-    // Validate password based on frontend config
+  
     if (!validatePassword(newPassword, passwordConfig)) {
       return next(new ErrorResponse('Password does not meet security policy', 400));
     }
 
-    // Decode the token and extract user information
+
     let decodedToken: { user: IUser; activationCode: string; exp: number };
 
     try {
@@ -673,49 +1006,48 @@ export const setupPassword = asyncHandler(
       return next(new ErrorResponse('Invalid or expired token', 400));
     }
 
-    const decodedUser = decodedToken.user;  // User info comes from the decoded token
+    const decodedUser = decodedToken.user;  
 
-    // Fetch the user from the database to ensure it's a Mongoose document
+   
     const user = await User.findOne({ email: decodedUser.email });
 
     if (!user) {
       return next(new ErrorResponse('User not found', 404));
     }
 
-    // Ensure companyId is set correctly from the user document
-    const companyId = user.company.toString();  // Company ID extracted from user document
+    
+    const companyId = user.company.toString();  
     if (!companyId) {
       return next(new ErrorResponse('Company ID is required', 400));
     }
 
-    // Verify that the user belongs to the same company
+
     if (user.company.toString() !== companyId) {
       return next(new ErrorResponse('User does not belong to this company', 403));
     }
 
-    // Check if the temporary password matches the one sent to the user's email
+  
     if (decodedToken.activationCode !== temporaryPassword) {
       return next(new ErrorResponse('Invalid temporary password', 400));
     }
 
-    // Update the password and set user to active after validation
-    user.password = newPassword;
-    user.isActive = true;  // Activate the user once password is set
 
-    // Save the updated user object
+    user.password = newPassword;
+    user.isActive = true; 
+
     await user.save();
 
-    // Log the action with user-specific companyId and password setup details
+
     await logAudit({
-      userId: user._id,  // Using user._id as userId
+      userId: user._id, 
       action: 'SETUP_PASSWORD',
       status: 'SUCCESS',
       ip: req.ip,
       userAgent: req.get('user-agent'),
-      companyId,  // Log the company ID associated with the user
+      companyId,  
     });
 
-    // Send response indicating success
+ 
     res.status(200).json({
       success: true,
       message: 'Password set successfully. You can now log in.',
@@ -774,6 +1106,54 @@ export const refreshAccessToken = async (
   }
 };
 
+
+interface NextStaffIdResponse {
+  success: boolean;
+  data: string;
+}
+
+export const getNextStaffId = asyncHandler(
+  async (
+    req: TypedRequest,
+    res: any,
+    next: NextFunction
+  ) => {
+    try {
+      const companyId = req.company?._id;
+      if (!companyId) {
+        return next(new ErrorResponse("Invalid company context", 400));
+      }
+
+      const lastStaff = await User.findOne({ company: companyId })
+        .sort({ createdAt: -1 })
+        .exec();
+
+      let nextNumber = 1;
+      if (lastStaff?.staffId) {
+        const parts = lastStaff.staffId.split("-");
+        const lastNumber = parseInt(parts[1], 10);
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
+        }
+      }
+
+      // Fetch company name from database
+      const company = await Company.findById(companyId).exec();
+      if (!company) {
+        return next(new ErrorResponse("Company not found", 404));
+      }
+
+      const nextStaffId = `${company.name}-${nextNumber}`;
+
+      res.status(200).json({
+        success: true,
+        data: nextStaffId,
+      });
+    } catch (err: any) {
+      next(new ErrorResponse(err.message, 500));
+    }
+  }
+);
 
 
 export const logout = asyncHandler(

@@ -24,7 +24,28 @@ export interface AttendanceHistoryResponse {
   data: IAttendance[];
 }
 
+// types/attendance.ts (or wherever you keep shared types)
+export interface AttendanceHistoryQuery {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
+  shift?: "day" | "night";
+  company?: string;
+  page?: string;
+  limit?: string;
+}
 
+
+interface AdminAttendanceQuery {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
+   shift?: "day" | "night";
+
+  company?: string;
+  page?: string;
+  limit?: string;
+}
 
 // dtos/AdminAttendanceReportQuery.dto.ts
 
@@ -75,3 +96,5 @@ export interface AttendanceFilterQuery {
   shift?: 'day' | 'night';
   company?: string;
 }
+
+

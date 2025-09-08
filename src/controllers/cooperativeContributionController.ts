@@ -104,86 +104,160 @@ export const notifyHr = asyncHandler(
 
 
 export const approveCooperativeContribution = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, {}>,
+  req: TypedRequest<{ id?: string }, {}, {}>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {
   const { id } = req.params;
+  const companyId = req.company?._id;
+  const userId = req.user?._id; // HR/admin performing the approval
 
   if (!id) {
-    return next(new ErrorResponse('Contribution ID is required', 400));
+    return next(new ErrorResponse("Contribution ID is required", 400));
   }
 
-  // Find contribution by id
-  const contribution = await CooperativeContribution.findById(id);
+  // Find contribution scoped to company
+  const contribution = await CooperativeContribution.findOne({ _id: id, companyId });
   if (!contribution) {
-    return next(new ErrorResponse('Contribution not found', 404));
+    return next(new ErrorResponse("Contribution not found for this company", 404));
   }
+
+  // Capture old status for audit
+  const oldStatus = contribution.status;
 
   // Update status to APPROVED
   contribution.status = "APPROVED";
   await contribution.save();
 
+  // 📝 Audit log
+  await logAudit({
+    userId,
+    action: "APPROVE_COOPERATIVE_CONTRIBUTION",
+    status: "SUCCESS",
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    details: {
+      contributionId: contribution._id,
+      oldStatus,
+      newStatus: contribution.status,
+      amount: contribution.amount,
+      month: contribution.month,
+      year: contribution.year,
+    },
+  });
+
   return res.status(200).json({
     success: true,
-    message: 'Contribution approved successfully',
+    message: "Contribution approved successfully",
     data: contribution,
   });
 });
 
 
-// Update contribution
+
+
 export const updateCooperativeContribution = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, Partial<ContributionRequest>>,
+  req: TypedRequest<{ id?: string }, {}, Partial<ContributionRequest>>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {
   const companyId = req.company?._id;
-  const { id } = req.params; 
+  const userId = req.user?._id; 
+  const { id } = req.params;
 
-  const allowedUpdates: (keyof ContributionRequest)[] = ['month', 'year', 'amount'];
-  const updates: Partial<ContributionRequest> = {};
 
-  for (const key of allowedUpdates) {
-    if (req.body[key] !== undefined) {
-      updates[key] = req.body[key] as any;
-    }
+
+
+  if (!id) {
+    return next(new ErrorResponse("Contribution ID is required", 400));
   }
 
-  const updated = await CooperativeContribution.findOneAndUpdate(
-    { _id: id, companyId },
-    { $set: updates },
-    { new: true, runValidators: true }
-  );
-
-  if (!updated) {
-    return next(new ErrorResponse('Contribution not found for this company', 404));
+  const contribution = await CooperativeContribution.findOne({ _id: id, companyId });
+  if (!contribution) {
+    return next(new ErrorResponse("Contribution not found for this company", 404));
   }
+
+  // Capture old values for audit
+  const oldAmount = contribution.amount;
+  const oldMonth = contribution.month;
+  const oldYear = contribution.year;
+
+
+
+
+  // Apply updates
+  if (req.body.month !== undefined) contribution.month = req.body.month;
+  if (req.body.year !== undefined) contribution.year = req.body.year;
+
+  if (req.body.amount !== undefined) {
+    contribution.amount = (contribution.amount || 0) + req.body.amount;
+  }
+
+  await contribution.save();
+
+  // 📝 Audit log with before/after values
+  await logAudit({
+    userId,
+    action: "UPDATE_COOPERATIVE_CONTRIBUTION",
+    status: "SUCCESS",
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    details: {
+      old: {
+        amount: oldAmount,
+        month: oldMonth,
+        year: oldYear,
+      },
+      new: {
+        amount: contribution.amount,
+        month: contribution.month,
+        year: contribution.year,
+      },
+    },
+  });
 
   return res.status(200).json({
     success: true,
-    message: 'Contribution updated successfully',
-    data: updated
+    message: "Contribution updated successfully",
+    data: contribution,
   });
 });
 
 
-
 export const rejectCooperativeContribution = asyncHandler(async (
-  req: TypedRequest<{ id: string }, {}, {}>,
+  req: TypedRequest<{ id?: string }, {}, {}>,
   res: TypedResponse<any>,
   next: NextFunction
 ) => {
   const { id } = req.params;
   const companyId = req.company?._id;
+  const userId = req.user?._id; 
 
   const contribution = await CooperativeContribution.findOne({ _id: id, companyId });
   if (!contribution) {
     return next(new ErrorResponse('Contribution not found for this company', 404));
   }
 
+  const oldStatus = contribution.status;
   contribution.status = "REJECTED";
   await contribution.save();
+
+    // 📝 Audit log
+  await logAudit({
+    userId,
+    action: "REJECT_COOPERATIVE_CONTRIBUTION",
+    status: "SUCCESS",
+    ip: req.ip,
+    userAgent: req.get("user-agent"),
+    details: {
+      contributionId: contribution._id,
+      oldStatus,
+      newStatus: contribution.status,
+      amount: contribution.amount,
+      month: contribution.month,
+      year: contribution.year,
+    },
+  });
 
   return res.status(200).json({
     success: true,

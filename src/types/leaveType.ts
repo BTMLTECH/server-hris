@@ -1,21 +1,28 @@
 import mongoose from "mongoose";
 import { ILeaveRequest } from "../models/LeaveRequest"
 import { IUser } from "../models/user.model";
+import { ILeaveBalance } from "../models/LeaveBalance";
 
-export interface CreateLeaveDTO {
- type: string, 
- startDate: string,
- endDate: string,
- reason: string,
- teamleadId: string,
- days: number,
- note?: string
+
+export interface CreateLeaveRequestBody {
+  type: "compassionate" | "annual" | "maternity";
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason: string;
+  teamleadId: string;
+  typeIdentify: "leave";
+  allowance?: "yes" | "no";
+  relievers: string[];
 }
 
-export interface CreateLeaveResponse {
-  data: ILeaveRequest; // where user is ObjectId
+export interface CreateLeaveRequestResponse {
+  data: ILeaveRequest;
 }
 
+export interface ApproveLeaveRequestResponse {
+  data: ILeaveRequest;
+}
 export interface ILeaveRequestPopulated extends Omit<ILeaveRequest, 'user'> {
   user: IUser;
 }
@@ -88,4 +95,47 @@ export interface LeaveActivitySummary {
 export interface LeaveActivityFeedResponse {
   feed: LeaveActivityFeedItem[];
   summary: LeaveActivitySummary;
+}
+
+
+
+export interface CreateLeaveBalanceBody {
+  user: string;
+  balances?: {
+    annual?: number;
+    compassionate?: number;
+    maternity?: number;
+  };
+  year?: number;
+}
+
+// instead of requiring full balances
+export interface UpdateLeaveBalanceBody {
+  leaveType: "annual" | "compassionate" | "maternity";
+  balance: number;
+  year?: number;
+}
+
+
+
+
+export interface PaginatedLeaveBalanceResponse {
+  data: any;  
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+  count: number;
+}
+
+export interface SingleLeaveBalanceResponse {
+  data: ILeaveBalance ;
+}
+
+export interface DeleteLeaveBalanceResponse {
+  success: boolean;
+  message: string;
+  data: { id: string };
 }

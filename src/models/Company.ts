@@ -3,8 +3,8 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICompany extends Document {
   name: string;
   description?: string;
-  roles: string; // Roles created by company admin
-  department: string; // Roles created by company admin
+  roles: string; 
+  department: string;
   status: string;
   createdAt: Date;
   branding?: {

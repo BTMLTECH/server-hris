@@ -65,7 +65,6 @@ export const generateNextMonthPayroll = async () => {
         continue;
       }
 
-      // Extract numeric part from position, e.g., "Level 4" => 4
       const userLevel = Number(userLevelRaw.replace(/\D/g, ''));
       if (isNaN(userLevel)) {
         continue;
@@ -75,10 +74,9 @@ export const generateNextMonthPayroll = async () => {
         continue;
       }
 
-      // Build the correct payGrade format: "2025 2.2"
+
       const payGrade = `${year} ${userClassLevel}`;
   
-      // Find ClassLevel with fallback
       const cl = await findUserClassLevel(companyId, userLevel, payGrade, year);
 
       if (!cl || !cl.grossSalary) {
@@ -87,7 +85,7 @@ export const generateNextMonthPayroll = async () => {
 
       const gross = cl.grossSalary;
 
-      // Calculate salaries
+    
       const basicSalary = gross * 0.55;
       const totalAllowances = gross * 0.45;
 

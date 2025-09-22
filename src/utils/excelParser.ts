@@ -1,4 +1,5 @@
-import * as XLSX from "xlsx";
+import * as XLSX from 'xlsx';
+import { NIGERIAN_BANKS } from '../constant/const';
 
 // =======================
 // TYPES
@@ -65,34 +66,42 @@ export interface ParsedClassLevel {
   grossSalary: number;
 }
 
-// =======================
-// HELPERS
-// =======================
-const getFormattedDate = (excelDate: unknown): string => {
-  if (typeof excelDate === "number") {
+export const getFormattedDate = (excelDate: unknown): string | null => {
+  if (excelDate === null || excelDate === undefined || String(excelDate).trim() === '') {
+    return null;
+  }
+
+  // Handle Excel numeric dates
+  if (typeof excelDate === 'number') {
     const parsed = XLSX.SSF.parse_date_code(excelDate);
     if (parsed) {
       const { y, m, d } = parsed;
-      return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
   }
 
   const parsedDate = new Date(String(excelDate).trim());
   if (!isNaN(parsedDate.getTime())) {
-    return parsedDate.toISOString().split("T")[0];
+    return parsedDate.toISOString().split('T')[0];
   }
 
-  return String(excelDate).trim();
+  return null;
 };
 
+export const normalizeBankName = (bankName?: string): string | null => {
+  if (!bankName) return null;
+  const trimmed = bankName.trim();
+  const matched = NIGERIAN_BANKS.find((b) => b.toLowerCase() === trimmed.toLowerCase());
+  return matched || null;
+};
 
 export const parseExcelUsers = (buffer: Buffer): ParsedUser[] => {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
   if (!rows.length || rows[0].length < 30) {
-    throw new Error("Invalid Excel file: missing headers or insufficient columns.");
+    throw new Error('Invalid Excel file: missing headers or insufficient columns.');
   }
 
   return rows
@@ -101,57 +110,63 @@ export const parseExcelUsers = (buffer: Buffer): ParsedUser[] => {
       if (row.every((cell) => !cell)) return null;
 
       return {
-        staffId: String(row[0] || "").trim(),
-        title: String(row[1] || "").trim(),
-        firstName: String(row[2] || "").trim(),
-        middleName: String(row[3] || "").trim(),
-        lastName: String(row[4] || "").trim(),
-        gender: String(row[5] || "").toLowerCase(),
+        staffId: String(row[0] || '').trim(),
+        title: String(row[1] || '').trim(),
+        firstName: String(row[2] || '').trim(),
+        middleName: String(row[3] || '').trim(),
+        lastName: String(row[4] || '').trim(),
+        gender: String(row[5] || '').toLowerCase(),
         dateOfBirth: getFormattedDate(row[6]),
-        stateOfOrigin: String(row[7] || "").trim(),
-        address: String(row[8] || "").trim(),
-        city: String(row[9] || "").trim(),
-        mobile: String(row[10] || "").trim(),
-        email: String(row[11] || "").trim(),
-        department: String(row[12] || "").trim(),
-        position: String(row[13] || "").trim(),
-        officeBranch: String(row[14] || "").trim(),
+        stateOfOrigin: String(row[7] || '').trim() || null,
+        address: String(row[8] || '').trim(),
+        city: String(row[9] || '').trim(),
+        mobile: String(row[10] || '').trim(),
+        email: String(row[11] || '').trim(),
+        department: String(row[12] || '').trim(),
+        position: String(row[13] || '').trim(),
+        officeBranch: String(row[14] || '').trim(),
         employmentDate: getFormattedDate(row[15]),
-        role: String(row[16] || "").toLowerCase(),
+        role: String(row[16] || '').toLowerCase(),
         accountInfo: {
-          classLevel: String(row[17] || "").trim(),
+          classLevel: String(row[17] || '').trim(),
           basicPay: Number(row[18] || 0),
           allowances: Number(row[19] || 0),
-          bankAccountNumber: String(row[20] || "").trim(),
-          bankName: String(row[21] || "").trim(),
-          taxNumber: String(row[22] || "").trim(),
-          pensionCompany: String(row[23] || "").trim(),
-          pensionNumber: String(row[24] || "").trim(),
+          bankAccountNumber: String(row[20] || '').trim(),
+          // bankName: String(row[21] || '').trim(),
+          bankName: row[21]?.trim() ? normalizeBankName(row[21]) : null,
+          taxNumber: String(row[22] || '').trim(),
+          pensionCompany: String(row[23] || '').trim() || null,
+          pensionNumber: String(row[24] || '').trim(),
         },
-        nextOfKin: {
-          name: String(row[25] || "").trim(),
-          phone: String(row[26] || "").trim(),
-          email: String(row[27] || "").trim(),
-          relationship: String(row[28] || "").trim(),
-        },
+
+        nextOfKin:
+          row[25] || row[26] || row[27] || row[28]
+            ? {
+                name: String(row[25] || '').trim(),
+                phone: String(row[26] || '').trim(),
+                email: String(row[27] || '').trim(),
+                relationship: String(row[28] || '').trim(),
+              }
+            : undefined,
+
         requirements: [],
-        status: String(row[29] || "active").toLowerCase(),
+        status: String(row[29] || 'active').toLowerCase(),
       };
     })
     .filter(Boolean) as ParsedUser[];
 };
 
 export const parseExcelPayroll = (buffer: Buffer): ParsedPayroll[] => {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
   if (!rawRows.length) {
-    throw new Error("Excel file is empty or missing data.");
+    throw new Error('Excel file is empty or missing data.');
   }
 
   const headerRowIndex = rawRows.findIndex((row) =>
-    row.some((cell) => String(cell).trim().toLowerCase() === "email")
+    row.some((cell) => String(cell).trim().toLowerCase() === 'email'),
   );
   if (headerRowIndex === -1) {
     throw new Error("No valid header row found (missing 'email').");
@@ -162,12 +177,11 @@ export const parseExcelPayroll = (buffer: Buffer): ParsedPayroll[] => {
 
   return dataRows
     .map((row) => {
-      if (!row || row.every((cell) => String(cell).trim() === "")) return null;
+      if (!row || row.every((cell) => String(cell).trim() === '')) return null;
 
       const rowObj: Record<string, any> = {};
       headers.forEach((header, colIndex) => {
-        rowObj[header] =
-          typeof row[colIndex] === "string" ? row[colIndex].trim() : row[colIndex];
+        rowObj[header] = typeof row[colIndex] === 'string' ? row[colIndex].trim() : row[colIndex];
       });
 
       if (!rowObj.email || !rowObj.month || !rowObj.year) return null;
@@ -197,12 +211,12 @@ export const recalcBreakdown = (gross: number) => {
 };
 
 export const parseExcelClassLevels = (buffer: Buffer): ParsedClassLevel[] => {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
   if (!rows.length || rows[0].length < 4) {
-    throw new Error("Invalid Excel file: missing headers or insufficient columns.");
+    throw new Error('Invalid Excel file: missing headers or insufficient columns.');
   }
 
   return rows
@@ -211,10 +225,16 @@ export const parseExcelClassLevels = (buffer: Buffer): ParsedClassLevel[] => {
       if (row.length < 4) return null;
       return {
         year: Number(row[0] || 0),
-        level: String(row[1] || "").trim(),
-        payGrade: String(row[2] || "").trim(),
+        level: String(row[1] || '').trim(),
+        payGrade: String(row[2] || '').trim(),
         grossSalary: Number(row[3] || 0),
       };
     })
     .filter(Boolean) as ParsedClassLevel[];
+};
+
+export const validateBankName = (bankName?: string): boolean => {
+  if (!bankName) return true;
+  const normalized = bankName.trim().toLowerCase();
+  return NIGERIAN_BANKS.some((b) => b.toLowerCase() === normalized);
 };

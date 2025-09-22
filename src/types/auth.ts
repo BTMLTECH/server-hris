@@ -1,11 +1,9 @@
-
-import { AccountInfo, IUser, NextOfKin } from "../models/user.model";
-import { PasswordConfig } from "../utils/passwordValidator";
-
+import { AccountInfo, IUser, NextOfKin } from '../models/user.model';
+import { PasswordConfig } from '../utils/passwordValidator';
 
 // AUTHENTICATION
 
-export interface LoginDTO{
+export interface LoginDTO {
   email: string;
   password: string;
 }
@@ -18,44 +16,40 @@ export interface Verify2FADTO {
   code: string;
 }
 
-  
 export interface SetupPasswordDTO {
-newPassword: string;
- passwordConfig: PasswordConfig;
- temporaryPassword: string;
- token: string
+  newPassword: string;
+  passwordConfig: PasswordConfig;
+  temporaryPassword: string;
+  token: string;
 }
 
 export interface SetupPasswordQuery {
   token?: string;
 }
 
-export interface  AuthData  {
+export interface AuthData {
   user?: IUser;
   token?: string | null;
   refreshToken?: string | null;
-};
-
-export interface CompanyRole {
-  roles: string;  
 }
 
-
-
+export interface CompanyRole {
+  roles: string;
+}
 
 export interface UserData {
   id: string;
   email: string;
   role: string;
   department: string;
-  token: string
+  token: string;
 }
 
 export interface CompanyData {
   id: string;
   name: string;
   description: string;
-  roles: string;  
+  roles: string;
   status: string;
   department: string;
 }
@@ -69,8 +63,8 @@ export interface AdminUserInput {
   lastName: string;
   middleName?: string;
   email: string;
-  title: "Mr" | "Mrs" | "Ms" | "Dr" | "Prof";
-  gender: "male" | "female";
+  title: 'Mr' | 'Mrs' | 'Ms' | 'Dr' | 'Prof';
+  gender: 'male' | 'female';
   staffId: string;
 }
 export interface CreateCompanyDTO {
@@ -97,16 +91,16 @@ export interface RegisterAdminDto {
   middleName?: string;
   email: string;
   password: string;
-   role:
-  | 'it'
-  | 'account'
-  | 'hr'
-  | 'channel'
-  | 'retail'
-  | 'operation'
-  | 'corporate'
-  | 'marketing'
-  | 'md';
+  role:
+    | 'it'
+    | 'account'
+    | 'hr'
+    | 'channel'
+    | 'retail'
+    | 'operation'
+    | 'corporate'
+    | 'marketing'
+    | 'md';
   passwordConfig?: PasswordConfig;
 }
 
@@ -114,8 +108,8 @@ export interface RegisterAdminDto {
 export interface SetPasswordDto {
   newPasswored: string;
   passwordConfig: PasswordConfig;
-  temporaryPassword : string;
-  token: string
+  temporaryPassword: string;
+  token: string;
 }
 
 export interface IActivationCode {
@@ -123,30 +117,39 @@ export interface IActivationCode {
   activationCode: string;
 }
 
-
 export interface UserListResponse {
   count: number;
   data: IUser[];
-};
-
+}
 
 export interface IOnboardingTask {
   name: string;
   category: 'training' | 'services' | 'device';
   completed: boolean;
-  completedAt?: string; 
+  completedAt?: string;
 }
 
 export interface IOnboardingRequirement {
   _id?: string;
-  employee: string; 
+  employee: string;
   department: string;
   tasks: IOnboardingTask[];
   createdAt: string;
 }
 
+export interface IUserWithBalance extends IUser {
+  leaveBalance?: {
+    balances: {
+      annual: number;
+      compassionate: number;
+      maternity: number;
+    };
+    year: number;
+  };
+}
+
 export interface PaginatedProfilesResponse {
-  data: any;  
+  data: IUserWithBalance[];
   pagination: {
     total: number;
     page: number;
@@ -156,29 +159,25 @@ export interface PaginatedProfilesResponse {
   count: number;
 }
 
-
-
-
-
 export interface InviteUserDTO {
   staffId: string;
-  title: IUser["title"]; 
+  title: IUser['title'];
   firstName: string;
   lastName: string;
   middleName?: string;
-  gender: IUser["gender"]; 
+  gender: IUser['gender'];
   dateOfBirth?: string | Date;
   stateOfOrigin?: string;
   address?: string;
   city?: string;
   mobile?: string;
   email: string;
-  department: IUser["department"];
+  department: IUser['department'];
   position?: string;
-  officeBranch?: IUser["officeBranch"];
+  officeBranch?: IUser['officeBranch'];
   employmentDate?: string | Date;
   accountInfo?: AccountInfo;
-  role: IUser["role"];
+  role: IUser['role'];
   nextOfKin?: NextOfKin;
 
   requirements?: Array<{

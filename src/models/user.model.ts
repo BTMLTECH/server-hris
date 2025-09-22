@@ -1,10 +1,10 @@
-import mongoose, { Schema, Document } from "mongoose";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { NIGERIAN_BANKS, NIGERIAN_STATES, PFA_COMPANIES } from "../constant/const";
-import { ICompany } from "./Company";
-import { IOnboardingRequirement } from "./OnboardingRequirement";
-
+import mongoose, { Schema, Document } from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { NIGERIAN_BANKS, NIGERIAN_STATES, PFA_COMPANIES } from '../constant/const';
+import { ICompany } from './Company';
+import { IOnboardingRequirement } from './OnboardingRequirement';
+import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
 
 export interface NextOfKin {
   name?: string;
@@ -32,11 +32,11 @@ export interface CooperativeInfo {
 
 export interface IUser extends Document {
   staffId: string;
-  title: "Mr" | "Mrs" | "Ms" | "Dr" | "Prof";
+  title: 'Mr' | 'Mrs' | 'Ms' | 'Dr' | 'Prof';
   firstName: string;
   middleName?: string;
   lastName: string;
-  gender: "male" | "female";
+  gender: 'male' | 'female';
   dateOfBirth?: Date;
   stateOfOrigin?: string;
   address?: string;
@@ -47,29 +47,29 @@ export interface IUser extends Document {
   email: string;
   password: string;
   department:
-    | "it"
-    | "account"
-    | "hr"
-    | "channel"
-    | "retail"
-    | "operation"
-    | "operationsbu"
-    | "corporate"
-    | "marketing"
-    | "md"
-    | "teamlead"
-    | "employee"
-    | "admin"
-    | "rgogh"
-    | "roaghi";
+    | 'it'
+    | 'account'
+    | 'hr'
+    | 'channel'
+    | 'retail'
+    | 'operation'
+    | 'operationsbu'
+    | 'corporate'
+    | 'marketing'
+    | 'md'
+    | 'teamlead'
+    | 'employee'
+    | 'admin'
+    | 'rgogh'
+    | 'roaghi';
   position?: string;
   level?: string;
-  officeBranch?: "Head Office" | "Shell SBU";
+  officeBranch?: 'Head Office' | 'Shell SBU';
   employmentDate?: Date;
   accountInfo?: AccountInfo;
-  role: "employee" | "md" | "teamlead" | "admin" | "hr" ;
+  role: 'employee' | 'md' | 'teamlead' | 'admin' | 'hr';
   company: mongoose.Types.ObjectId | ICompany;
-  status: "active" | "inactive" | "terminated";
+  status: 'active' | 'inactive' | 'terminated';
   terminationDate?: Date;
   isActive: boolean;
   failedLoginAttempts: number;
@@ -84,8 +84,6 @@ export interface IUser extends Document {
   requirements?: IOnboardingRequirement[];
   resetTokenExpiry?: Date;
   createdAt: Date;
-
-  // Methods
   SignAccessToken(): string;
   SignRefreshToken(): string;
   comparePassword(enteredPassword: string): Promise<boolean>;
@@ -96,15 +94,15 @@ const UserSchema = new Schema<IUser>(
     staffId: { type: String, required: true, unique: true },
     title: {
       type: String,
-      enum: ["Mr", "Mrs", "Ms", "Dr", "Prof"],
+      enum: ['Mr', 'Mrs', 'Ms', 'Dr', 'Prof'],
       required: true,
     },
     firstName: { type: String, required: true, trim: true },
-    middleName: { type: String, trim: true },
+    middleName: { type: String },
     lastName: { type: String, required: true, trim: true },
-    gender: { type: String, enum: ["male", "female"], required: true },
+    gender: { type: String, enum: ['male', 'female'], required: true },
     dateOfBirth: Date,
-    stateOfOrigin: { type: String, enum: NIGERIAN_STATES },
+    stateOfOrigin: { type: String, enum: NIGERIAN_STATES, required: false, default: null },
     address: String,
     city: String,
     mobile: String,
@@ -126,21 +124,21 @@ const UserSchema = new Schema<IUser>(
     department: {
       type: String,
       enum: [
-        "it",
-        "account",
-        "hr",
-        "channel",
-        "retail",
-        "operation",
-        "operationsbu",
-        "corporate",
-        "marketing",
-        "md",
-        "teamlead",
-        "employee",
-        "admin",
-        "rgogh",
-        "roaghi",
+        'it',
+        'account',
+        'hr',
+        'channel',
+        'retail',
+        'operation',
+        'operationsbu',
+        'corporate',
+        'marketing',
+        'md',
+        'teamlead',
+        'employee',
+        'admin',
+        'rgogh',
+        'roaghi',
       ],
       required: true,
     },
@@ -148,30 +146,30 @@ const UserSchema = new Schema<IUser>(
     level: String,
     officeBranch: {
       type: String,
-      enum: ["Head Office", "Shell SBU"],
+      enum: ['Head Office', 'Shell SBU'],
       required: false,
     },
-    employmentDate: Date,
+    employmentDate: { type: Date, required: false, default: null },
     accountInfo: {
       classLevel: String,
       basicPay: Number,
       allowances: Number,
       bankAccountNumber: String,
-      bankName: { type: String, enum: NIGERIAN_BANKS },
+      bankName: { type: String, enum: NIGERIAN_BANKS, required: false, default: null },
       taxNumber: String,
-      pensionCompany: { type: String, enum: PFA_COMPANIES },
+      pensionCompany: { type: String, enum: PFA_COMPANIES, required: false, default: null },
       pensionNumber: String,
     },
     role: {
       type: String,
-      enum: ["employee", "md", "teamlead", "admin", "hr", "reliever"],
-      default: "employee",
+      enum: ['employee', 'md', 'teamlead', 'admin', 'hr', 'reliever'],
+      default: 'employee',
     },
-    company: { type: Schema.Types.ObjectId, ref: "Company", required: true },
+    company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
     status: {
       type: String,
-      enum: ["active", "inactive", "terminated"],
-      default: "active",
+      enum: ['active', 'inactive', 'terminated'],
+      default: 'active',
       required: true,
     },
     terminationDate: { type: Date, default: null },
@@ -192,25 +190,27 @@ const UserSchema = new Schema<IUser>(
     resetTokenExpiry: Date,
     createdAt: { type: Date, default: Date.now },
   },
-  { toJSON: { virtuals: true }, toObject: { virtuals: true } }
+  { toJSON: { virtuals: true }, toObject: { virtuals: true } },
 );
 
-UserSchema.virtual("requirements", {
-  ref: "OnboardingRequirement",
-  localField: "_id",
-  foreignField: "employee",
+UserSchema.virtual('requirements', {
+  ref: 'OnboardingRequirement',
+  localField: '_id',
+  foreignField: 'employee',
 });
 
+UserSchema.plugin(mongooseLeanVirtuals);
+
 // Middleware
-UserSchema.pre("save", function (next) {
-  if (this.status === "terminated" && !this.terminationDate) {
+UserSchema.pre('save', function (next) {
+  if (this.status === 'terminated' && !this.terminationDate) {
     this.terminationDate = new Date();
   }
   next();
 });
 
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
@@ -220,23 +220,21 @@ UserSchema.pre("save", async function (next) {
 UserSchema.methods.SignAccessToken = function (): string {
   return jwt.sign(
     { id: this._id, role: this.role, company: this.company },
-    process.env.ACCESS_TOKEN || "",
-    { expiresIn: "1d" }
+    process.env.ACCESS_TOKEN || '',
+    { expiresIn: '1d' },
   );
 };
 
 UserSchema.methods.SignRefreshToken = function (): string {
   return jwt.sign(
     { id: this._id, role: this.role, company: this.company },
-    process.env.REFRESH_TOKEN || "",
-    { expiresIn: "7d" }
+    process.env.REFRESH_TOKEN || '',
+    { expiresIn: '7d' },
   );
 };
 
-UserSchema.methods.comparePassword = async function (
-  enteredPassword: string
-): Promise<boolean> {
+UserSchema.methods.comparePassword = async function (enteredPassword: string): Promise<boolean> {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-export default mongoose.model<IUser>("User", UserSchema);
+export default mongoose.model<IUser>('User', UserSchema);

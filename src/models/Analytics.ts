@@ -55,7 +55,7 @@ export interface IBirthdayAnalytics {
       lastName: string;
       dateOfBirth: Date;
       profileImage: string;
-    }
+    },
   ];
 }
 
@@ -127,7 +127,7 @@ const SalaryByDeptSchema = new Schema<ISalaryByDept>({
 });
 
 const SalaryByRoleSchema = new Schema<ISalaryByRole>({
-  role: { type: String, required: true },
+  role: { type: String, required: false },
   avgSalary: { type: Number, required: true },
   count: { type: Number, required: true },
   fill: { type: String, required: true },
@@ -238,7 +238,7 @@ const AnalyticsSchema = new Schema<IAnalytics>(
     toObject: {
       virtuals: true,
     },
-  }
+  },
 );
 
 // Exports

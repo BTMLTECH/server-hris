@@ -1,25 +1,23 @@
 // jobs/generateMonthlyPayroll.ts
-import ClassLevel from "../models/ClassLevel";
-import PayrollNew from "../models/PayrollNew";
-import User from "../models/user.model";
-import { calculatePayroll } from "../utils/payrollCalculator";
-import { Types } from "mongoose";
+import ClassLevel from '../models/ClassLevel';
+import PayrollNew from '../models/PayrollNew';
+import User from '../models/user.model';
+import { excludeRoles } from '../utils/excludeRoles';
+import { calculatePayroll } from '../utils/payrollCalculator';
+import { Types } from 'mongoose';
 
 function getShiftedMonthYear(date = new Date(), offset = 1) {
   const d = new Date(date.getFullYear(), date.getMonth() + offset, 1);
   return { month: d.getMonth() + 1, year: d.getFullYear() };
 }
 
-// Find ClassLevel for user; fallback to latest if exact year not found
 async function findUserClassLevel(
   companyId: Types.ObjectId,
   level: number | undefined,
   payGrade: string,
-  year: number
+  year: number,
 ) {
-
   if (level === undefined) return null;
-
 
   let cl = await ClassLevel.findOne({
     company: companyId,
@@ -30,7 +28,6 @@ async function findUserClassLevel(
 
   if (cl) return cl;
 
- 
   cl = await ClassLevel.findOne({
     company: companyId,
     level,
@@ -45,21 +42,18 @@ async function findUserClassLevel(
 export const generateNextMonthPayroll = async () => {
   try {
     const { month, year } = getShiftedMonthYear(new Date(), 1);
-   
+
     // Fetch all active users
-    const users = await User.find({ status: "active" })
-    ;
+    const users = await User.find({
+      ...excludeRoles(),
+    }).lean();
 
     let createdCount = 0;
 
     for (const user of users) {
-    
-
       const companyId = user.company as Types.ObjectId;
       const userLevelRaw = user.position;
       const userClassLevel = user.accountInfo?.classLevel;
-
-  
 
       if (!userLevelRaw) {
         continue;
@@ -69,14 +63,13 @@ export const generateNextMonthPayroll = async () => {
       if (isNaN(userLevel)) {
         continue;
       }
-  
+
       if (!userClassLevel) {
         continue;
       }
 
-
       const payGrade = `${year} ${userClassLevel}`;
-  
+
       const cl = await findUserClassLevel(companyId, userLevel, payGrade, year);
 
       if (!cl || !cl.grossSalary) {
@@ -85,7 +78,6 @@ export const generateNextMonthPayroll = async () => {
 
       const gross = cl.grossSalary;
 
-    
       const basicSalary = gross * 0.55;
       const totalAllowances = gross * 0.45;
 
@@ -119,16 +111,12 @@ export const generateNextMonthPayroll = async () => {
         taxBands: p.taxBands || [],
         month,
         year,
-        status: "pending",
+        status: 'pending',
       };
-
-    
 
       // Insert payroll
       await PayrollNew.create(payrollPayload);
       createdCount++;
     }
-
-  } catch (err) {
-  }
+  } catch (err) {}
 };

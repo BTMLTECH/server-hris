@@ -8,7 +8,7 @@ import { autoCheckoutForgotten } from './controllers/attendanceController';
 import { Server, Server as SocketIOServer } from 'socket.io';
 import http from 'http';
 import { generateNextMonthPayroll } from './jobs/generatePayroll';
-import { runBirthdayNotifications } from './utils/birthdayNotifications ';
+import { runBirthdayNotifications, seedMonthlyBirthdays } from './utils/birthdayNotifications ';
 import Company from './models/Company';
 
 dotenv.config();
@@ -50,7 +50,9 @@ mongoose
       if (userId) {
         socket.join(userId);
       }
-      socket.on('disconnect', () => {});
+      socket.on('disconnect', () => {
+        socket.leave(userId);
+      });
     });
 
     // 🔹 Redis connection test
@@ -85,13 +87,20 @@ mongoose
       },
     );
 
-    cron.schedule('0 0 1 * *', async () => {
+    cron.schedule('0 1 * * *', async () => {
+      const company = await Company.findOne({ status: 'active' });
+      if (!company) return;
+
+      await seedMonthlyBirthdays(company);
+    });
+
+    cron.schedule('0 8 * * *', async () => {
       const company = await Company.findOne({ status: 'active' });
       if (!company) {
         return;
       }
 
-      await runBirthdayNotifications(company);
+      const celebrants = await runBirthdayNotifications(company);
     });
 
     // Start server

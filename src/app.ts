@@ -23,8 +23,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 const allowedOrigins = [
-  // "http://localhost:8083",
-  // "http://localhost:8082",
+  // 'http://localhost:8083',
+  // 'http://localhost:8082',
   'http://staging-hris.btmlimited.net',
 ];
 

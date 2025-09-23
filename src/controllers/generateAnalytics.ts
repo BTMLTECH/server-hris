@@ -1,27 +1,34 @@
-import { NextFunction } from "express";
-import { asyncHandler } from "../middleware/asyncHandler";
-import Analytics, { IAnalytics, ISalaryByDept, ISalaryByRole, ILeaveAnalytics, IHiringTrend, IBirthdayAnalytics, IChartConfig, IKeyMetrics, IDashboardCards, IRecentActivity } from "../models/Analytics";
-import Attendance, { IAttendance } from "../models/Attendance";
-import LeaveRequest, { ILeaveRequest, LeaveEntitlements } from "../models/LeaveRequest";
-import { TypedRequest } from "../types/typedRequest";
-import { TypedResponse } from "../types/typedResponse";
-import ErrorResponse from "../utils/ErrorResponse";
-import User, { IUser } from '../models/user.model'
-import AppraisalRequest, { IAppraisalRequest } from "../models/AppraisalRequest";
-
+import { NextFunction } from 'express';
+import { asyncHandler } from '../middleware/asyncHandler';
+import Analytics, {
+  IAnalytics,
+  ISalaryByDept,
+  ISalaryByRole,
+  ILeaveAnalytics,
+  IHiringTrend,
+  IBirthdayAnalytics,
+  IChartConfig,
+  IKeyMetrics,
+  IDashboardCards,
+  IRecentActivity,
+} from '../models/Analytics';
+import Attendance, { IAttendance } from '../models/Attendance';
+import LeaveRequest, { ILeaveRequest, LeaveEntitlements } from '../models/LeaveRequest';
+import { TypedRequest } from '../types/typedRequest';
+import { TypedResponse } from '../types/typedResponse';
+import ErrorResponse from '../utils/ErrorResponse';
+import User, { IUser } from '../models/user.model';
+import AppraisalRequest, { IAppraisalRequest } from '../models/AppraisalRequest';
+import Birthday from '../models/Birthday';
 
 /**
  * @desc Generates and retrieves company analytics data.
  * @route POST /api/v1/analytics/generate
-* @access Private/Admin
+ * @access Private/Admin
  * @note This is a heavy operation and should be run on a schedule or as a one-off.
  */
 export const generateAnalyticsAndDashboard = asyncHandler(
-  async (
-    req: TypedRequest<{}, {}, {}>,
-    res: TypedResponse<any>,
-    next: NextFunction
-  ) => {
+  async (req: TypedRequest<{}, {}, {}>, res: TypedResponse<any>, next: NextFunction) => {
     try {
       const companyId = req.company?._id;
 
@@ -29,15 +36,10 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         return next(new ErrorResponse('Unauthorized or missing company context', 403));
       }
 
-      // Check for an existing analytics document for the company.
       const existingAnalytics = await Analytics.findOne({ company: companyId });
-      
-      // Declare the 'now' variable once for use in multiple sections.
+
       const now = new Date();
 
-      // -------------------- Aggregation Pipelines --------------------
-
-      // 1. Aggregate Salary Distribution by Department
       const salaryDistributionByDept: ISalaryByDept[] = await User.aggregate([
         { $match: { company: companyId, status: 'active' } },
         {
@@ -61,7 +63,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
       ]);
 
-      // 2. Aggregate Salary Distribution by Role
       const salaryDistributionByRole: ISalaryByRole[] = await User.aggregate([
         { $match: { company: companyId, status: 'active' } },
         {
@@ -82,7 +83,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
       ]);
 
-      // 3. Aggregate Leave Analytics
       const leaveTypesData: ILeaveAnalytics[] = await LeaveRequest.aggregate([
         { $match: { company: companyId, status: 'Approved' } },
         {
@@ -100,18 +100,20 @@ export const generateAnalyticsAndDashboard = asyncHandler(
               $switch: {
                 branches: [
                   { case: { $eq: ['$_id', 'annual'] }, then: LeaveEntitlements.annual },
-                  { case: { $eq: ['$_id', 'compassionate'] }, then: LeaveEntitlements.compassionate },
-                  { case: { $eq: ['$_id', 'maternity'] }, then: LeaveEntitlements.maternity }
+                  {
+                    case: { $eq: ['$_id', 'compassionate'] },
+                    then: LeaveEntitlements.compassionate,
+                  },
+                  { case: { $eq: ['$_id', 'maternity'] }, then: LeaveEntitlements.maternity },
                 ],
-                default: 0
-              }
+                default: 0,
+              },
             },
             fill: { $literal: '#8884d8' },
-          }
-        }
+          },
+        },
       ]);
 
-      // 4. Aggregate Hiring Trends for the last 12 months
       const today = new Date();
       const twelveMonthsAgo = new Date();
       twelveMonthsAgo.setMonth(today.getMonth() - 12);
@@ -163,7 +165,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
       ]);
 
-      // 5. Aggregate Attendance Data
       const attendanceData: IAttendance[] = await Attendance.aggregate([
         { $match: { company: companyId, status: { $ne: 'on_leave' } } },
         {
@@ -199,39 +200,46 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
       ]);
 
-      // 6. Aggregate Birthday Data
-      const birthdayAnalytics: IBirthdayAnalytics[] = await User.aggregate([
-        { $match: { company: companyId, dateOfBirth: { $exists: true }, staffId: { $exists: true, $ne: null } } },
+      const birthdayAnalytics: IBirthdayAnalytics[] = await Birthday.aggregate([
+        {
+          $match: {
+            company: companyId,
+            staffId: { $exists: true, $ne: null },
+          },
+        },
         {
           $group: {
-            _id: { $month: "$dateOfBirth" },
+            _id: '$month',
             celebrants: {
               $push: {
-                staffId: "$staffId",
-                firstName: "$firstName",
-                lastName: "$lastName",
-                dateOfBirth: "$dateOfBirth",
-                profileImage: "$profileImage",
+                staffId: '$staffId',
+                firstName: '$firstName',
+                lastName: '$lastName',
+                dateOfBirth: '$dateOfBirth',
+                profileImage: '$profileImage',
               },
             },
           },
         },
-        { $sort: { _id: 1 } },
+        {
+          $sort: { _id: 1 },
+        },
         {
           $project: {
             _id: 0,
             month: {
               $dateToString: {
-                format: "%b",
+                format: '%b',
                 date: {
                   $dateFromParts: {
-                    year: { $year: new Date() },
-                    month: "$_id",
+                    year: new Date().getFullYear(),
+                    month: '$_id',
+                    day: 1,
                   },
                 },
               },
             },
-            celebrants: "$celebrants",
+            celebrants: 1,
           },
         },
       ]);
@@ -247,7 +255,10 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         employmentDate: { $lte: lastQuarterEnd },
       });
 
-      const employeeGrowthValue = employeesLastQuarter > 0 ? ((employeesNow - employeesLastQuarter) / employeesLastQuarter) * 100 : 0;
+      const employeeGrowthValue =
+        employeesLastQuarter > 0
+          ? ((employeesNow - employeesLastQuarter) / employeesLastQuarter) * 100
+          : 0;
 
       const avgSalaryData = await User.aggregate([
         { $match: { company: companyId, status: 'active' } },
@@ -259,10 +270,13 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         { $match: { company: companyId, status: 'Approved' } },
         { $group: { _id: null, totalDays: { $sum: '$days' } } },
       ]);
-      
+
       const totalLeaveUsedDays = totalLeaveUsed.length > 0 ? totalLeaveUsed[0]?.totalDays : 0;
-      const totalLeaveAllocated = employeesNow * (LeaveEntitlements.annual + LeaveEntitlements.compassionate + LeaveEntitlements.maternity);
-      const leaveUtilizationValue = totalLeaveAllocated > 0 ? (totalLeaveUsedDays / totalLeaveAllocated) * 100 : 0;
+      const totalLeaveAllocated =
+        employeesNow *
+        (LeaveEntitlements.annual + LeaveEntitlements.compassionate + LeaveEntitlements.maternity);
+      const leaveUtilizationValue =
+        totalLeaveAllocated > 0 ? (totalLeaveUsedDays / totalLeaveAllocated) * 100 : 0;
 
       const keyMetrics: IKeyMetrics = {
         employeeGrowth: {
@@ -306,7 +320,7 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       const appraisalsDue = await AppraisalRequest.countDocuments({
         company: companyId,
         status: 'pending',
-        dueDate: { $gte: currentMonthStart, $lt: nextMonthStart }
+        dueDate: { $gte: currentMonthStart, $lt: nextMonthStart },
       });
 
       // NOTE: The 'Task' model was not provided. The completed tasks card uses placeholder data.
@@ -314,7 +328,7 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       const completedTasks = 128;
       const completedTasksLastWeek = 113; // Example value
       const completedTasksTrend = completedTasks - completedTasksLastWeek;
-      
+
       const dashboardCards: IDashboardCards = {
         totalEmployees: {
           value: employeesNow,
@@ -335,36 +349,58 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       };
 
       // 9. Fetch Recent Activity
-      const recentHires = (await User.find({ company: companyId }).sort({ employmentDate: -1 }).limit(2).lean()) as (IUser & { updatedAt?: Date })[];
-      const recentLeaves = (await LeaveRequest.find({ company: companyId, status: 'Approved' }).sort({ updatedAt: -1 }).limit(2).lean()) as (ILeaveRequest & { updatedAt?: Date })[];
-      
+      const recentHires = (await User.find({ company: companyId })
+        .sort({ employmentDate: -1 })
+        .limit(2)
+        .lean()) as (IUser & { updatedAt?: Date })[];
+      const recentLeaves = (await LeaveRequest.find({ company: companyId, status: 'Approved' })
+        .sort({ updatedAt: -1 })
+        .limit(2)
+        .lean()) as (ILeaveRequest & { updatedAt?: Date })[];
+
       // Dynamically fetch recent appraisals, as the model was provided.
-      const recentAppraisals = (await AppraisalRequest.find({ company: companyId, status: 'submitted' }).sort({ updatedAt: -1 }).limit(2).lean()) as (IAppraisalRequest & { updatedAt?: Date })[];
-      
+      const recentAppraisals = (await AppraisalRequest.find({
+        company: companyId,
+        status: 'submitted',
+      })
+        .sort({ updatedAt: -1 })
+        .limit(2)
+        .lean()) as (IAppraisalRequest & { updatedAt?: Date })[];
+
       // NOTE: Placeholder data for 'Task' model, as it was not provided.
-      const recentTasks = [{ message: 'New employee onboarded', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) }];
+      const recentTasks = [
+        { message: 'New employee onboarded', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+      ];
 
       const recentActivity: IRecentActivity[] = [
-        ...recentHires.map((h): IRecentActivity => ({ 
-          message: `New employee ${h.firstName} onboarded`, 
-          timestamp: h.employmentDate || new Date(), 
-          type: 'onboarding' 
-        })),
-        ...recentLeaves.map((l): IRecentActivity => ({ 
-          message: `Leave request approved`, 
-          timestamp: l.updatedAt || new Date(), 
-          type: 'leave' 
-        })),
-        ...recentAppraisals.map((a): IRecentActivity => ({ 
-          message: `Appraisal for ${a.title} submitted`, 
-          timestamp: a.updatedAt || new Date(), 
-          type: 'appraisal' 
-        })),
-        ...recentTasks.map((t): IRecentActivity => ({ 
-          message: t.message, 
-          timestamp: t.createdAt, 
-          type: 'task' 
-        })),
+        ...recentHires.map(
+          (h): IRecentActivity => ({
+            message: `New employee ${h.firstName} onboarded`,
+            timestamp: h.employmentDate || new Date(),
+            type: 'onboarding',
+          }),
+        ),
+        ...recentLeaves.map(
+          (l): IRecentActivity => ({
+            message: `Leave request approved`,
+            timestamp: l.updatedAt || new Date(),
+            type: 'leave',
+          }),
+        ),
+        ...recentAppraisals.map(
+          (a): IRecentActivity => ({
+            message: `Appraisal for ${a.title} submitted`,
+            timestamp: a.updatedAt || new Date(),
+            type: 'appraisal',
+          }),
+        ),
+        ...recentTasks.map(
+          (t): IRecentActivity => ({
+            message: t.message,
+            timestamp: t.createdAt,
+            type: 'task',
+          }),
+        ),
       ];
 
       // Sort recent activity by timestamp in descending order and take the top 5
@@ -391,11 +427,10 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       };
 
       if (existingAnalytics) {
-        analytics = await Analytics.findOneAndUpdate(
-          { company: companyId },
-          analyticsData,
-          { new: true, runValidators: true }
-        );
+        analytics = await Analytics.findOneAndUpdate({ company: companyId }, analyticsData, {
+          new: true,
+          runValidators: true,
+        });
       } else {
         analytics = await Analytics.create({
           company: companyId,
@@ -412,5 +447,5 @@ export const generateAnalyticsAndDashboard = asyncHandler(
     } catch (err: any) {
       next(new ErrorResponse(err.message, 500));
     }
-  }
+  },
 );

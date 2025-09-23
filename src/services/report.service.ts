@@ -376,10 +376,15 @@ export class ReportService {
       })
         .populate('user')
         .lean();
-      const payrolls = rawPayrolls.map((p: any) => {
-        if (!p.user) throw new Error('Payroll missing user info');
-        return p as unknown as IPayroll & { user: IUser };
-      });
+
+      const payrolls = rawPayrolls
+        .filter((p: any) => {
+          if (!p.user) {
+            return false;
+          }
+          return true;
+        })
+        .map((p: any) => p as unknown as IPayroll & { user: IUser });
 
       // Filter by department if needed
       const filteredPayrolls =

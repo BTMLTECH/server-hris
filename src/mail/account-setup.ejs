@@ -2,10 +2,11 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta http-equiv="Content-Type" content="text/html" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Account Activation - <%= companyName %></title>
+  <title>Account Activation - <%= companyName %>
+  </title>
   <style>
     * {
       margin: 0;
@@ -15,7 +16,7 @@
 
     body {
       font-family: Arial, sans-serif;
-      background-color: #e0f0ff; /* Light blue background */
+      background-color: #e0f0ff;
       color: #003366;
       margin: 0;
       padding: 0;
@@ -26,7 +27,8 @@
       text-decoration: none;
     }
 
-    h1, h2 {
+    h1,
+    h2 {
       color: #003366;
       font-size: 28px;
       font-weight: 700;
@@ -73,24 +75,6 @@
       text-align: center;
     }
 
-    .button {
-      display: inline-block;
-      background-color: #0057b8;
-      font-size: 16px;
-      font-weight: 600;
-      text-align: center;
-      color: #ffffff;
-      border-radius: 4px;
-      padding: 12px 30px;
-      text-decoration: none;
-      margin-top: 20px;
-      transition: background-color 0.3s ease;
-    }
-
-    .button:hover {
-      background-color: #003366;
-    }
-
     .footer-text {
       font-size: 12px;
     }
@@ -102,23 +86,38 @@
     <div class="email-header">
       <% if (logoUrl) { %>
         <img src="<%= logoUrl %>" alt="<%= companyName %> Logo" />
-      <% } %>
-      <h1>Welcome to <%= companyName %></h1>
+        <% } %>
+          <h1>Welcome to <%= companyName %>
+          </h1>
     </div>
+
     <div class="email-body">
       <p>Hello <%= name %>,</p>
       <p>You’ve been invited to set up your account on <%= companyName %>.</p>
       <p>Your temporary password is:</p>
-      <div class="activation-code"><%= activationCode %></div>
-      <p>To complete your account setup and choose a permanent password, please click the button below:</p>
-      <div style="text-align: center;">
-        <a href="<%= setupLink %>" class="button">Set Up Your Account</a>
+
+      <div class="activation-code">
+        <%= activationCode %>
       </div>
-      <p>This link will expire <strong><%= expiresAt %></strong>.</p>
+
+      <p>To complete your account setup and choose a permanent password, please click the button below:</p>
+
+      <div style="text-align: center;">
+        <a href="<%= setupLink %>"
+          style="display: inline-block; background-color: #0057b8; color: #ffffff; font-size: 16px; font-weight: 600; text-align: center; border: 1px solid #0057b8; border-radius: 4px; padding: 12px 30px; text-decoration: none; margin-top: 20px;">
+          Set Up Your Account
+        </a>
+      </div>
+
+      <p>This link will expire <strong>
+          <%= expiresAt %>
+        </strong>.</p>
       <p>If you did not expect this email, please ignore it.</p>
     </div>
+
     <div class="email-footer">
-      <p class="footer-text">© <%= new Date().getFullYear() %> <%= companyName %>. All rights reserved.</p>
+      <p class="footer-text">© <%= new Date().getFullYear() %>
+          <%= companyName %>. All rights reserved.</p>
     </div>
   </div>
 </body>

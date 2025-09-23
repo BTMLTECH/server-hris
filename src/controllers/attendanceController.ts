@@ -9,31 +9,38 @@ import { sendNotification } from '../utils/sendNotification';
 import { formatHours, getCurrentShift } from '../utils/shiftUtils';
 import { generateRandomPassword } from '../utils/passwordValidator';
 import mongoose, { isValidObjectId, Types } from 'mongoose';
-import { BiometryCheckInDto, BiometryCheckInResponse, ManualCheckInDto, AttendanceHistoryResponse, AdminAttendanceReportQuery, EmployeeAttendanceStatsResponse, CompanyAttendanceSummaryQuery, CompanyAttendanceSummaryResponse, AttendanceFilterQuery, AttendanceHistoryQuery } from '../types/attendanceType';
+import {
+  BiometryCheckInDto,
+  BiometryCheckInResponse,
+  ManualCheckInDto,
+  AttendanceHistoryResponse,
+  AdminAttendanceReportQuery,
+  EmployeeAttendanceStatsResponse,
+  CompanyAttendanceSummaryQuery,
+  CompanyAttendanceSummaryResponse,
+  AttendanceFilterQuery,
+  AttendanceHistoryQuery,
+} from '../types/attendanceType';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ICompany } from '../models/Company';
 
 // 🔐 OFFICE BIOMETRY CHECK-IN
 export const biometryCheckIn = asyncHandler(
-  async (
-    req: TypedRequest<{}, {}, { biometryId?: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
+  async (req: TypedRequest<{}, {}, { biometryId?: string }>, res: Response, next: NextFunction) => {
     try {
       const { biometryId } = req.body;
 
       if (!biometryId) {
-        return next(new ErrorResponse("Missing biometryId", 400));
+        return next(new ErrorResponse('Missing biometryId', 400));
       }
 
       const user = await User.findOne({ biometryId });
       if (!user || !user.isActive) {
-        return next(new ErrorResponse("Invalid or inactive user", 404));
+        return next(new ErrorResponse('Invalid or inactive user', 404));
       }
 
       const { shift, startTime } = getCurrentShift();
-      const date = new Date().toISOString().split("T")[0];
+      const date = new Date().toISOString().split('T')[0];
 
       const existing = await Attendance.findOne({
         user: user._id as Types.ObjectId,
@@ -42,11 +49,11 @@ export const biometryCheckIn = asyncHandler(
       });
 
       if (existing) {
-        return next(new ErrorResponse("Already clocked in for this shift", 400));
+        return next(new ErrorResponse('Already clocked in for this shift', 400));
       }
 
       const now = new Date();
-      const status: IAttendance["status"] = now > startTime ? "late" : "present";
+      const status: IAttendance['status'] = now > startTime ? 'late' : 'present';
 
       const attendance: IAttendance = await Attendance.create({
         user: user._id as Types.ObjectId,
@@ -60,16 +67,16 @@ export const biometryCheckIn = asyncHandler(
         department: user.department,
       });
 
-      if (status === "late") {
-        const checkInTime = now.toTimeString().split(" ")[0];
+      if (status === 'late') {
+        const checkInTime = now.toTimeString().split(' ')[0];
         await sendNotification({
           user,
-          type: "WARNING",
-          title: "Late Check-In",
+          type: 'WARNING',
+          title: 'Late Check-In',
           message: `You checked in late for your ${shift} shift on ${date}`,
           metadata: { date, shift, checkInTime },
-          emailSubject: "Late Check-In Alert",
-          emailTemplate: "late-notification.ejs",
+          emailSubject: 'Late Check-In Alert',
+          emailTemplate: 'late-notification.ejs',
           emailData: {
             name: user.firstName,
             date,
@@ -86,22 +93,22 @@ export const biometryCheckIn = asyncHandler(
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));
     }
-  }
+  },
 );
 
 // 🔐 REMOTE MANUAL CHECK-IN (AUTH REQUIRED)
 export const manualCheckIn = asyncHandler(
   async (
-    req: TypedRequest<{}, {}, { shift?: "day" | "night" }>,
+    req: TypedRequest<{}, {}, { shift?: 'day' | 'night' }>,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const company = req.company;
       const user = await User.findById(req.user?.id);
 
       if (!user || !user.isActive) {
-        return next(new ErrorResponse("Invalid or inactive user", 404));
+        return next(new ErrorResponse('Invalid or inactive user', 404));
       }
 
       const { shift: overrideShift } = req.body;
@@ -110,7 +117,7 @@ export const manualCheckIn = asyncHandler(
         ? getCurrentShift(overrideShift)
         : getCurrentShift();
 
-      const date = new Date().toISOString().split("T")[0];
+      const date = new Date().toISOString().split('T')[0];
 
       const existing = await Attendance.findOne({
         user: user._id as Types.ObjectId,
@@ -120,15 +127,13 @@ export const manualCheckIn = asyncHandler(
 
       if (existing) {
         if (existing.checkOut) {
-          return next(
-            new ErrorResponse("You have already checked out for this shift", 400)
-          );
+          return next(new ErrorResponse('You have already checked out for this shift', 400));
         }
-        return next(new ErrorResponse("Already clocked in for this shift", 400));
+        return next(new ErrorResponse('Already clocked in for this shift', 400));
       }
 
       const now = new Date();
-      const status: IAttendance["status"] = now > startTime ? "late" : "present";
+      const status: IAttendance['status'] = now > startTime ? 'late' : 'present';
 
       const attendance: IAttendance = await Attendance.create({
         user: user._id as Types.ObjectId,
@@ -142,16 +147,16 @@ export const manualCheckIn = asyncHandler(
         department: user.department,
       });
 
-      if (status === "late") {
-        const checkInTime = now.toTimeString().split(" ")[0];
+      if (status === 'late') {
+        const checkInTime = now.toTimeString().split(' ')[0];
         await sendNotification({
           user,
-          type: "WARNING",
-          title: "Late Check-In",
+          type: 'WARNING',
+          title: 'Late Check-In',
           message: `You checked in late for your ${shift} shift on ${date}`,
           metadata: { date, shift, checkInTime },
-          emailSubject: "Late Check-In Alert",
-          emailTemplate: "late-notification.ejs",
+          emailSubject: 'Late Check-In Alert',
+          emailTemplate: 'late-notification.ejs',
           emailData: {
             name: user.firstName,
             date,
@@ -159,7 +164,7 @@ export const manualCheckIn = asyncHandler(
             checkInTime,
             companyName: company?.branding?.displayName || company?.name,
             logoUrl: company?.branding?.logoUrl,
-            primaryColor: company?.branding?.primaryColor || "#0621b6b0",
+            primaryColor: company?.branding?.primaryColor || '#0621b6b0',
           },
         });
       }
@@ -173,31 +178,27 @@ export const manualCheckIn = asyncHandler(
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));
     }
-  }
+  },
 );
 
 // 🔐 OFFICE BIOMETRY CHECK-OUT
 export const biometryCheckOut = asyncHandler(
-  async (
-    req: TypedRequest<{}, {}, { biometryId?: string }>,
-    res: Response,
-    next: NextFunction
-  ) => {
+  async (req: TypedRequest<{}, {}, { biometryId?: string }>, res: Response, next: NextFunction) => {
     try {
       const { biometryId } = req.body;
 
       if (!biometryId) {
-        return next(new ErrorResponse("Missing biometryId", 400));
+        return next(new ErrorResponse('Missing biometryId', 400));
       }
 
       const user = await User.findOne({ biometryId });
 
       if (!user || !user.isActive) {
-        return next(new ErrorResponse("Invalid or inactive user", 404));
+        return next(new ErrorResponse('Invalid or inactive user', 404));
       }
 
       const { shift, endTime } = getCurrentShift();
-      const date = new Date().toISOString().split("T")[0];
+      const date = new Date().toISOString().split('T')[0];
 
       const record = await Attendance.findOne({
         user: user._id,
@@ -206,16 +207,11 @@ export const biometryCheckOut = asyncHandler(
       });
 
       if (!record || record.checkOut) {
-        return next(
-          new ErrorResponse("Not clocked in or already clocked out", 400)
-        );
+        return next(new ErrorResponse('Not clocked in or already clocked out', 400));
       }
 
       const now = new Date();
-      const workedHours = +(
-        Math.abs(now.getTime() - record.checkIn.getTime()) /
-        36e5
-      ).toFixed(2);
+      const workedHours = +(Math.abs(now.getTime() - record.checkIn.getTime()) / 36e5).toFixed(2);
 
       record.checkOut = now;
       record.hoursWorked = workedHours;
@@ -226,21 +222,21 @@ export const biometryCheckOut = asyncHandler(
       if (isEarly) {
         await sendNotification({
           user,
-          type: "WARNING",
-          title: "Early Check-Out",
+          type: 'WARNING',
+          title: 'Early Check-Out',
           message: `You checked out early for your ${shift} shift on ${date}`,
           metadata: {
             date,
             shift,
-            checkOutTime: now.toTimeString().split(" ")[0],
+            checkOutTime: now.toTimeString().split(' ')[0],
           },
-          emailSubject: "Early Check-Out Alert",
-          emailTemplate: "early-checkout-notification.ejs",
+          emailSubject: 'Early Check-Out Alert',
+          emailTemplate: 'early-checkout-notification.ejs',
           emailData: {
             name: user.firstName,
             date,
             shift,
-            checkOutTime: now.toTimeString().split(" ")[0],
+            checkOutTime: now.toTimeString().split(' ')[0],
           },
         });
       }
@@ -256,33 +252,27 @@ export const biometryCheckOut = asyncHandler(
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));
     }
-  }
+  },
 );
-
-
-
-
 
 export const manualCheckOut = asyncHandler(
   async (
-    req: TypedRequest<{}, {}, { shift?: "day" | "night" }>,
+    req: TypedRequest<{}, {}, { shift?: 'day' | 'night' }>,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const user = await User.findById(req.user?.id);
 
       if (!user || !user.isActive) {
-        return next(new ErrorResponse("Invalid or inactive user", 404));
+        return next(new ErrorResponse('Invalid or inactive user', 404));
       }
 
       const { shift: overrideShift } = req.body;
 
-      const { shift, endTime } = overrideShift
-        ? getCurrentShift(overrideShift)
-        : getCurrentShift();
+      const { shift, endTime } = overrideShift ? getCurrentShift(overrideShift) : getCurrentShift();
 
-      const date = new Date().toISOString().split("T")[0];
+      const date = new Date().toISOString().split('T')[0];
 
       const record = await Attendance.findOne({
         user: user._id as Types.ObjectId,
@@ -291,9 +281,7 @@ export const manualCheckOut = asyncHandler(
       });
 
       if (!record || record.checkOut) {
-        return next(
-          new ErrorResponse("Not clocked in or already clocked out", 400)
-        );
+        return next(new ErrorResponse('Not clocked in or already clocked out', 400));
       }
 
       const now = new Date();
@@ -318,17 +306,17 @@ export const manualCheckOut = asyncHandler(
       if (isEarly) {
         await sendNotification({
           user,
-          type: "WARNING",
-          title: "Early Check-Out",
+          type: 'WARNING',
+          title: 'Early Check-Out',
           message: `You checked out early for your ${shift} shift on ${date}`,
-          metadata: { date, shift, checkOutTime: now.toTimeString().split(" ")[0] },
-          emailSubject: "Early Check-Out Alert",
-          emailTemplate: "early-checkout-notification.ejs",
+          metadata: { date, shift, checkOutTime: now.toTimeString().split(' ')[0] },
+          emailSubject: 'Early Check-Out Alert',
+          emailTemplate: 'early-checkout-notification.ejs',
           emailData: {
             name: user.firstName,
             date,
             shift,
-            checkOutTime: now.toTimeString().split(" ")[0],
+            checkOutTime: now.toTimeString().split(' ')[0],
           },
         });
       }
@@ -344,44 +332,30 @@ export const manualCheckOut = asyncHandler(
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));
     }
-  }
+  },
 );
 
-
-
 export const getAttendanceHistory = asyncHandler(
-  async (
-    req: TypedRequest<{}, AttendanceHistoryQuery, {}>,
-    res: Response,
-    _next: NextFunction
-  ) => {
+  async (req: TypedRequest<{}, AttendanceHistoryQuery, {}>, res: Response, _next: NextFunction) => {
     const user = req.user;
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized",
+        message: 'Unauthorized',
         data: {
           data: [],
-          pagination: { total: 0, page: 1, limit: 10, pages: 1 },
+          pagination: { total: 0, page: 1, limit: 20, pages: 1 },
           count: 0,
         },
       });
     }
 
-    const {
-      startDate,
-      endDate,
-      department,
-      shift,
-      company,
-      page = 1,
-      limit = 20,
-    } = req.query;
+    const { startDate, endDate, department, shift, company, page = 1, limit = 20 } = req.query;
 
     const query: Record<string, any> = {};
 
-    const isRestricted = ["employee", "teamlead", "md"].includes(user.role);
+    const isRestricted = ['employee', 'teamlead', 'md'].includes(user.role);
 
     if (isRestricted) {
       query.user = user.id;
@@ -412,7 +386,7 @@ export const getAttendanceHistory = asyncHandler(
 
     const [attendanceRecords, total] = await Promise.all([
       Attendance.find(query)
-        .populate<{ user: IUser }>("user", "firstName lastName email role")
+        .populate<{ user: IUser }>('user', 'staffId firstName lastName email role')
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum),
@@ -431,31 +405,15 @@ export const getAttendanceHistory = asyncHandler(
           limit: limitNum,
           pages,
         },
-        count: 0, // optional: could be used for filtered/specific criteria count
+        count: 0,
       },
     });
-  }
+  },
 );
 
-
-
-
-
 export const adminAttendanceReport = asyncHandler(
-  async (
-    req: TypedRequest<{}, AttendanceHistoryQuery, {}>,
-    res: Response,
-    _next: NextFunction
-  ) => {
-    const {
-      startDate,
-      endDate,
-      department,
-      shift,
-      company,
-      page = "1",
-      limit = "20",
-    } = req.query;
+  async (req: TypedRequest<{}, AttendanceHistoryQuery, {}>, res: Response, _next: NextFunction) => {
+    const { startDate, endDate, department, shift, company, page = '1', limit = '20' } = req.query;
 
     const query: Record<string, any> = {};
 
@@ -486,7 +444,7 @@ export const adminAttendanceReport = asyncHandler(
 
     const [attendanceRecords, total] = await Promise.all([
       Attendance.find(query)
-        .populate("user", "firstName lastName email role")
+        .populate('user', 'firstName lastName email role')
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum),
@@ -502,9 +460,8 @@ export const adminAttendanceReport = asyncHandler(
         data: attendanceRecords,
       },
     });
-  }
+  },
 );
-
 
 export const getEmployeeAttendanceStats = asyncHandler(
   async (req: TypedRequest, res: Response, _next: NextFunction) => {
@@ -513,25 +470,24 @@ export const getEmployeeAttendanceStats = asyncHandler(
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized",
+        message: 'Unauthorized',
       });
     }
 
     const totalDays = await Attendance.countDocuments({ user: userId });
 
-    // Match model enum: "late" | "present" | "absent" | "on_leave"
     const lateDays = await Attendance.countDocuments({
       user: userId,
-      status: "late",
+      status: 'late',
     });
     const presentDays = await Attendance.countDocuments({
       user: userId,
-      status: "present",
+      status: 'present',
     });
 
     const hoursData = await Attendance.aggregate([
       { $match: { user: req.user?._id } },
-      { $group: { _id: null, totalHours: { $sum: "$hoursWorked" } } },
+      { $group: { _id: null, totalHours: { $sum: '$hoursWorked' } } },
     ]);
 
     res.status(200).json({
@@ -542,16 +498,12 @@ export const getEmployeeAttendanceStats = asyncHandler(
           lateDays,
           presentDays,
           totalHoursWorked: hoursData[0]?.totalHours || 0,
-          latePercentage: totalDays
-            ? Math.round((lateDays / totalDays) * 100)
-            : 0,
+          latePercentage: totalDays ? Math.round((lateDays / totalDays) * 100) : 0,
         },
       },
     });
-  }
+  },
 );
-
-
 
 export const getCompanyAttendanceSummary = asyncHandler(
   async (req: TypedRequest, res: Response, _next: NextFunction) => {
@@ -560,37 +512,34 @@ export const getCompanyAttendanceSummary = asyncHandler(
     if (!requester || !requester.company) {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized: User is not associated with any company.",
+        message: 'Unauthorized: User is not associated with any company.',
       });
     }
 
     const companyId = requester.company;
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toISOString().split('T')[0];
 
     const totalEmployees = await User.countDocuments({
       company: companyId,
-      role: "employee", // lowercase, consistent with your model usage
+      role: 'employee', // lowercase, consistent with your model usage
       isActive: true,
     });
 
     // Attendance records for today
-    const todayRecords: Pick<IAttendance, "user" | "shift">[] =
-      await Attendance.find({
-        company: companyId,
-        date: today,
-      }).select("user shift");
+    const todayRecords: Pick<IAttendance, 'user' | 'shift'>[] = await Attendance.find({
+      company: companyId,
+      date: today,
+    }).select('user shift');
 
     // Deduplicate by user
     const uniqueUserIds = new Set(todayRecords.map((r) => r.user.toString()));
     const attendedToday = uniqueUserIds.size;
 
     // Shift breakdown
-    const dayShift = todayRecords.filter((r) => r.shift === "day").length;
-    const nightShift = todayRecords.filter((r) => r.shift === "night").length;
+    const dayShift = todayRecords.filter((r) => r.shift === 'day').length;
+    const nightShift = todayRecords.filter((r) => r.shift === 'night').length;
 
-    const attendanceRate = totalEmployees
-      ? Math.round((attendedToday / totalEmployees) * 100)
-      : 0;
+    const attendanceRate = totalEmployees ? Math.round((attendedToday / totalEmployees) * 100) : 0;
 
     return res.status(200).json({
       success: true,
@@ -603,19 +552,17 @@ export const getCompanyAttendanceSummary = asyncHandler(
         },
       },
     });
-  }
+  },
 );
-
-
 
 export const markAbsentees = asyncHandler(async () => {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const date = yesterday.toISOString().split("T")[0];
+  const date = yesterday.toISOString().split('T')[0];
 
   // Fetch active employees
   const employees: IUser[] = await User.find({
-    role: "employee", // lowercase to match your role system
+    role: 'employee', // lowercase to match your role system
     isActive: true,
   });
 
@@ -629,8 +576,8 @@ export const markAbsentees = asyncHandler(async () => {
       await Attendance.create({
         user: user._id,
         // biometryId: user.biometryId,
-        shift: "day", // fallback
-        status: "absent",
+        shift: 'day', // fallback
+        status: 'absent',
         checkIn: undefined,
         date,
         company: user.company,
@@ -640,37 +587,36 @@ export const markAbsentees = asyncHandler(async () => {
 
     await sendNotification({
       user,
-      type: "WARNING",
-      title: "Absence Detected",
+      type: 'WARNING',
+      title: 'Absence Detected',
       message: `You were marked absent on ${date}`,
-      metadata: { date, shift: "day" },
-      emailSubject: "You were marked absent",
-      emailTemplate: "absence-notification.ejs",
+      metadata: { date, shift: 'day' },
+      emailSubject: 'You were marked absent',
+      emailTemplate: 'absence-notification.ejs',
       emailData: {
         name: user.firstName,
         date,
-        shift: "day",
+        shift: 'day',
         companyName:
-          typeof user.company === "object" && "name" in user.company
+          typeof user.company === 'object' && 'name' in user.company
             ? (user.company as any).name
-            : "",
+            : '',
         logoUrl:
-          typeof user.company === "object" &&
-          "branding" in user.company &&
+          typeof user.company === 'object' &&
+          'branding' in user.company &&
           (user.company as any).branding?.logoUrl
             ? (user.company as any).branding.logoUrl
-            : "",
+            : '',
         primaryColor:
-          typeof user.company === "object" &&
-          "branding" in user.company &&
+          typeof user.company === 'object' &&
+          'branding' in user.company &&
           (user.company as any).branding?.primaryColor
             ? (user.company as any).branding.primaryColor
-            : "#0621b6b0",
+            : '#0621b6b0',
       },
     });
   }
 });
-
 
 export const exportAttendanceExcel = asyncHandler(
   async (
@@ -680,12 +626,12 @@ export const exportAttendanceExcel = asyncHandler(
         startDate?: string;
         endDate?: string;
         department?: string;
-        shift?: "day" | "night";
+        shift?: 'day' | 'night';
         company?: string;
       },
       {}
     >,
-    res: Response
+    res: Response,
   ) => {
     const { startDate, endDate, department, shift, company } = req.query;
 
@@ -698,23 +644,23 @@ export const exportAttendanceExcel = asyncHandler(
     if (company) query.company = company;
 
     const records = await Attendance.find(query)
-      .populate<{ user: IUser }>("user", "firstName lastName email role")
+      .populate<{ user: IUser }>('user', 'firstName lastName email role')
       .sort({ date: 1 });
 
     // Create workbook and worksheet
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Attendance Report");
+    const worksheet = workbook.addWorksheet('Attendance Report');
 
     worksheet.columns = [
-      { header: "Date", key: "date", width: 15 },
-      { header: "Name", key: "name", width: 25 },
-      { header: "Email", key: "email", width: 30 },
-      { header: "Role", key: "role", width: 15 },
-      { header: "Shift", key: "shift", width: 15 },
-      { header: "Check In", key: "checkIn", width: 20 },
-      { header: "Check Out", key: "checkOut", width: 20 },
-      { header: "Hours Worked", key: "hoursWorked", width: 15 },
-      { header: "Status", key: "status", width: 15 },
+      { header: 'Date', key: 'date', width: 15 },
+      { header: 'Name', key: 'name', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Role', key: 'role', width: 15 },
+      { header: 'Shift', key: 'shift', width: 15 },
+      { header: 'Check In', key: 'checkIn', width: 20 },
+      { header: 'Check Out', key: 'checkOut', width: 20 },
+      { header: 'Hours Worked', key: 'hoursWorked', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
       // { header: "Biometry ID", key: "biometryId", width: 20 },
     ];
 
@@ -729,12 +675,8 @@ export const exportAttendanceExcel = asyncHandler(
           email: user.email,
           role: user.role,
           shift: record.shift,
-          checkIn: record.checkIn
-            ? new Date(record.checkIn).toLocaleString()
-            : "",
-          checkOut: record.checkOut
-            ? new Date(record.checkOut).toLocaleString()
-            : "",
+          checkIn: record.checkIn ? new Date(record.checkIn).toLocaleString() : '',
+          checkOut: record.checkOut ? new Date(record.checkOut).toLocaleString() : '',
           hoursWorked: record.hoursWorked || 0,
           status: record.status,
           // biometryId: record.biometryId,
@@ -743,19 +685,15 @@ export const exportAttendanceExcel = asyncHandler(
     });
 
     res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=attendance_${Date.now()}.xlsx`
-    );
+    res.setHeader('Content-Disposition', `attachment; filename=attendance_${Date.now()}.xlsx`);
 
     await workbook.xlsx.write(res);
     res.end();
-  }
+  },
 );
-
 
 export const autoCheckoutForgotten = async (): Promise<void> => {
   const now = new Date();
@@ -764,17 +702,14 @@ export const autoCheckoutForgotten = async (): Promise<void> => {
     isCheckedIn: true,
     checkOut: { $exists: false },
   })
-    .populate<{ user: IUser }>("user")
+    .populate<{ user: IUser }>('user')
     .sort({ createdAt: -1 });
 
   for (const record of activeRecords) {
-    // Parse record.date (string) into a Date
     const baseDate = new Date(record.date);
 
-    // Get shift timing based on shift + record date
     const { endTime } = getCurrentShift(record.shift, baseDate);
 
-    // Auto check out only if the current time is past the shift's end
     if (now > endTime) {
       const workedHours = +(
         Math.abs(endTime.getTime() - new Date(record.checkIn).getTime()) / 36e5

@@ -743,34 +743,34 @@ export const bulkImportUsers = asyncHandler(
         );
       }
 
-      if (
-        !staffId ||
-        !title ||
-        !gender ||
-        !email ||
-        !role ||
-        !firstName ||
-        !lastName ||
-        !department ||
-        !employmentDate ||
-        !mobile ||
-        !dateOfBirth ||
-        !stateOfOrigin ||
-        // !city ||
-        !position ||
-        !officeBranch ||
-        !address ||
-        !accountInfo?.classLevel ||
-        !accountInfo?.basicPay ||
-        !accountInfo?.allowances
-        // !accountInfo?.bankAccountNumber ||
-        // !accountInfo?.bankName
-        // !nextOfKin?.name ||
-        // !nextOfKin?.phone ||
-        // !nextOfKin?.relationship
-      ) {
-        return next(new ErrorResponse(`Missing required fields for user ${email}`, 400));
-      }
+      // if (
+      // !staffId ||
+      // !title ||
+      // !gender ||
+      // !email ||
+      // !role ||
+      // !firstName ||
+      // !lastName ||
+      // !department ||
+      // !employmentDate ||
+      // !mobile ||
+      // !dateOfBirth ||
+      // !stateOfOrigin ||
+      // !city ||
+      // !position ||
+      // !officeBranch ||
+      // !address ||
+      // !accountInfo?.classLevel ||
+      // !accountInfo?.basicPay ||
+      // !accountInfo?.allowances
+      // !accountInfo?.bankAccountNumber ||
+      // !accountInfo?.bankName
+      // !nextOfKin?.name ||
+      // !nextOfKin?.phone ||
+      // !nextOfKin?.relationship
+      // ) {
+      //   return next(new ErrorResponse(`Missing required fields for user ${email}`, 400));
+      // }
 
       if (nextOfKin && Object.values(nextOfKin).some((val) => val)) {
         if (!nextOfKin.name || !nextOfKin.phone || !nextOfKin.relationship) {

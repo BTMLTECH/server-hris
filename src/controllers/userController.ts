@@ -344,7 +344,6 @@ export const deleteEmployee = async (
           err.hasOwnProperty('errorLabels') &&
           err.errorLabels.includes('TransientTransactionError')
         ) {
-          console.warn(`TransientTransactionError, retrying transaction (attempt ${attempt})`);
           continue; // retry
         } else {
           throw err; // non-transient error or max retries reached

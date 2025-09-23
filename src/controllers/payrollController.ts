@@ -20,7 +20,6 @@ export const getAllPayrolls = asyncHandler(
   async (req: TypedRequest<{}, any, {}>, res: TypedResponse<any>, next: NextFunction) => {
     const user = req.user;
     const company = req.company;
-    console.log('I AM HITTING HERE', req.query);
     if (!user || !company)
       return next(new ErrorResponse('Unauthorized or no company context', 401));
 
@@ -37,7 +36,7 @@ export const getAllPayrolls = asyncHandler(
     } else if (employee) matchStage.user = new mongoose.Types.ObjectId(employee);
     if (month) {
       const monthNum = monthNameToNumber(String(month));
-      if (monthNum) matchStage.month = monthNum; // ✅ correct mapping
+      if (monthNum) matchStage.month = monthNum;
     }
 
     if (year) matchStage.year = Number(year);

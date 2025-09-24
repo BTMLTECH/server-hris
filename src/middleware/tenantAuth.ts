@@ -2,13 +2,13 @@ import { NextFunction } from 'express';
 import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
-import Company from '../models/Company'; // <-- Make sure you import this
+import Company from '../models/Company';
 import { AuthData } from '../types/auth';
 
 export const tenantAuth = async (
   req: TypedRequest,
   res: TypedResponse<AuthData>,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     if (!req.user || !req.user.company) {
@@ -21,8 +21,7 @@ export const tenantAuth = async (
       return next(new ErrorResponse('Company not found', 404));
     }
 
-    req.company = company; // ✅ Now this matches ICompany type
-
+    req.company = company;
     next();
   } catch (err: any) {
     next(new ErrorResponse(err.message || 'Server error', 500));

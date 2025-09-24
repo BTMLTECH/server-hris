@@ -58,7 +58,7 @@ export const login = asyncHandler(
     if (!isMatch) {
       user.failedLoginAttempts++;
       if (user.failedLoginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 mins lock
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
       }
       await user.save();
       return next(new ErrorResponse('Invalid credentials', 401));
@@ -74,9 +74,9 @@ export const login = asyncHandler(
       return next(new ErrorResponse('Invalid token or missing expiration', 500));
     }
 
-    const expiryTimestamp = decoded.exp * 1000;
+    // const expiryTimestamp = decoded.exp * 1000;
+    const expiryTimestamp = Date.now() + 48 * 60 * 60 * 1000;
     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
-    const company = req.company;
 
     const emailData = {
       name: user.firstName,

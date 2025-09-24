@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export const LeaveEntitlements = {
   annual: 21,
@@ -6,12 +6,11 @@ export const LeaveEntitlements = {
   maternity: 90,
 };
 
-
 export interface IReliever {
   user: Types.ObjectId;
   firstName: string;
   lastName: string;
-  status: "Pending" | "Approved" | "Rejected";
+  status: 'Pending' | 'Approved' | 'Rejected';
   note?: string;
   creactedAt?: Date;
 }
@@ -19,7 +18,7 @@ export interface IReliever {
 interface IReviewStep {
   reviewer?: Types.ObjectId;
   role: string;
-  action?: "Pending" | "Approved" | "Rejected" | "Expired";
+  action?: 'Pending' | 'Approved' | 'Rejected' | 'Expired';
   date?: Date;
   note?: string;
 }
@@ -29,42 +28,39 @@ export interface TypedRequestQuery {
   from?: string;
   to?: string;
   limit?: string;
-  page?: string
+  page?: string;
 }
 export interface ILeaveRequest extends Document {
   user: Types.ObjectId;
   teamlead: Types.ObjectId;
   relievers: IReliever[];
-  type: "compassionate" | "annual" | "maternity";
-  typeIdentify: "leave";
+  type: 'compassionate' | 'annual' | 'maternity';
+  typeIdentify: 'leave';
   startDate: Date;
   endDate: Date;
   days?: number;
   reason: string;
-  status: "Pending" | "Approved" | "Rejected" | "Expired";
-  reviewLevels: ("reliever" | "teamlead" | "hr")[];
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Expired';
+  reviewLevels: ('reliever' | 'teamlead' | 'hr')[];
   reviewTrail: IReviewStep[];
   allowance: boolean;
   url?: string;
   createdAt: Date;
 }
 
-// -----------------------------
-// Schema
-// -----------------------------
 const LeaveRequestSchema = new Schema<ILeaveRequest>({
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  teamlead: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  teamlead: { type: Schema.Types.ObjectId, ref: 'User', required: true },
 
   relievers: [
     {
-      user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
       firstName: { type: String, required: true },
       lastName: { type: String, required: true },
       status: {
         type: String,
-        enum: ["Pending", "Approved", "Rejected"],
-        default: "Pending",
+        enum: ['Pending', 'Approved', 'Rejected'],
+        default: 'Pending',
       },
       note: { type: String },
       creactedAt: { type: Date },
@@ -73,11 +69,11 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>({
 
   type: {
     type: String,
-    enum: ["compassionate", "annual", "maternity"],
+    enum: ['compassionate', 'annual', 'maternity'],
     required: true,
   },
 
-  typeIdentify: { type: String, enum: ["leave"], required: true },
+  typeIdentify: { type: String, enum: ['leave'], required: true },
 
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
@@ -86,34 +82,34 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>({
 
   status: {
     type: String,
-    enum: ["Pending", "Approved", "Rejected", "Expired"],
-    default: "Pending",
+    enum: ['Pending', 'Approved', 'Rejected', 'Expired'],
+    default: 'Pending',
   },
 
   reviewLevels: {
-    type: [{ type: String, enum: ["reliever", "teamlead", "hr"] }],
+    type: [{ type: String, enum: ['reliever', 'teamlead', 'hr'] }],
     default: function () {
       // Dynamically set relievers (2–3) + teamlead + hr
       const relieverCount = Math.min(Math.max(this.relievers?.length || 2, 2), 3);
-      return Array(relieverCount).fill("reliever").concat(["teamlead", "hr"]);
+      return Array(relieverCount).fill('reliever').concat(['teamlead', 'hr']);
     },
     validate: {
       validator: function (v: string[]) {
         if (!Array.isArray(v)) return false;
-        const relieversCount = v.filter((r) => r === "reliever").length;
-        const endsCorrectly = v[v.length - 2] === "teamlead" && v[v.length - 1] === "hr";
+        const relieversCount = v.filter((r) => r === 'reliever').length;
+        const endsCorrectly = v[v.length - 2] === 'teamlead' && v[v.length - 1] === 'hr';
         return (relieversCount === 2 || relieversCount === 3) && endsCorrectly;
       },
       message:
-        "Review flow must start with 2 or 3 relievers, then include teamlead → hr as final approvers",
+        'Review flow must start with 2 or 3 relievers, then include teamlead → hr as final approvers',
     },
   },
 
   reviewTrail: [
     {
-      reviewer: { type: Schema.Types.ObjectId, ref: "User" },
+      reviewer: { type: Schema.Types.ObjectId, ref: 'User' },
       role: { type: String },
-      action: { type: String, enum: ["Pending", "Approved", "Rejected", "Expired"] },
+      action: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Expired'] },
       date: { type: Date },
       note: { type: String },
     },
@@ -124,7 +120,4 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>({
   createdAt: { type: Date, default: Date.now },
 });
 
-// -----------------------------
-// Model
-// -----------------------------
-export default mongoose.model<ILeaveRequest>("LeaveRequest", LeaveRequestSchema);
+export default mongoose.model<ILeaveRequest>('LeaveRequest', LeaveRequestSchema);

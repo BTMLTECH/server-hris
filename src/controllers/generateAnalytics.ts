@@ -314,7 +314,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         status: 'Pending',
       });
 
-      // Dynamically calculate appraisals due for this month
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       const appraisalsDue = await AppraisalRequest.countDocuments({
@@ -323,8 +322,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         dueDate: { $gte: currentMonthStart, $lt: nextMonthStart },
       });
 
-      // NOTE: The 'Task' model was not provided. The completed tasks card uses placeholder data.
-      // To make this dynamic, you must provide the Mongoose model for this feature.
       const completedTasks = 128;
       const completedTasksLastWeek = 113; // Example value
       const completedTasksTrend = completedTasks - completedTasksLastWeek;
@@ -348,7 +345,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
       };
 
-      // 9. Fetch Recent Activity
       const recentHires = (await User.find({ company: companyId })
         .sort({ employmentDate: -1 })
         .limit(2)
@@ -358,7 +354,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         .limit(2)
         .lean()) as (ILeaveRequest & { updatedAt?: Date })[];
 
-      // Dynamically fetch recent appraisals, as the model was provided.
       const recentAppraisals = (await AppraisalRequest.find({
         company: companyId,
         status: 'submitted',
@@ -367,7 +362,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         .limit(2)
         .lean()) as (IAppraisalRequest & { updatedAt?: Date })[];
 
-      // NOTE: Placeholder data for 'Task' model, as it was not provided.
       const recentTasks = [
         { message: 'New employee onboarded', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
       ];
@@ -403,11 +397,8 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         ),
       ];
 
-      // Sort recent activity by timestamp in descending order and take the top 5
       recentActivity.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       const topRecentActivity = recentActivity.slice(0, 5);
-
-      // -------------------- Create and Save Analytics Document --------------------
 
       let analytics;
       const analyticsData = {

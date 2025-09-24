@@ -1,9 +1,9 @@
-import { ICompany } from "../models/Company";
-import Notification, { INotification } from "../models/Notification";
-import { IUser } from "../models/user.model";
-import { sendEmail } from "./emailUtil";
-import { Server as SocketIOServer } from "socket.io";
-
+import { ICompany } from '../models/Company';
+import Notification, { INotification } from '../models/Notification';
+import { IUser } from '../models/user.model';
+import { sendEmail } from './emailUtil';
+import { Server as SocketIOServer } from 'socket.io';
+import { emitToUser } from './socketEmitter';
 
 declare global {
   var io: SocketIOServer | undefined;
@@ -49,11 +49,13 @@ export const sendNotification = async ({
   }
 
   // 3. Emit real-time event
-  const io = globalThis.io as any;
-  if (io && user._id) {
-    const roomId = user._id.toString();
-    io.to(roomId).emit("notification:new", notification.toObject());
-  }
+  // const io = globalThis.io as any;
+  // if (io && user._id) {
+  //   const roomId = user._id.toString();
+  //   io.to(roomId).emit("notification:new", notification.toObject());
+  // }
+
+  emitToUser((user._id as string).toString(), 'notification:new', notification.toObject());
 
   return notification;
 };

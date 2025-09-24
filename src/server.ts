@@ -17,25 +17,13 @@ const PORT = process.env.PORT || 8080;
 mongoose
   .connect(process.env.MONGO_URI!)
   .then(async () => {
-    // 🔹 Ensure unique sparse index for biometryId
-    // const indexes = await User.collection.indexes();
-    // const biometryIndex = indexes.find((idx) => idx.key.biometryId === 1);
-    // if (biometryIndex?.name) {
-    //   await User.collection.dropIndex(biometryIndex.name);
-    // }
-    // await User.collection.createIndex(
-    //   { biometryId: 1 },
-    //   { unique: true, sparse: true }
-    // );
-
-    // 🔹 Create HTTP + Socket.IO server
     const server = http.createServer(app);
     const io = new Server(server, {
       cors: {
         origin: [
-          // "http://localhost:8083",
-          'http://localhost:8082',
-          // 'http://staging-hris.btmlimited.net',
+          // 'http://localhost:8083',
+          // 'http://localhost:8082',
+          'http://hris.btmlimited.net',
         ],
         credentials: true,
       },
@@ -55,16 +43,13 @@ mongoose
       });
     });
 
-    // 🔹 Redis connection test
     try {
       await redisClient.set('ping', 'pong');
       const pong = await redisClient.get('ping');
     } catch (err) {}
 
-    // 🔹 Initial jobs
     await expireUnreviewedLeaves();
 
-    // 🔹 Scheduled jobs
     cron.schedule('0 0 * * *', async () => {
       await expireUnreviewedLeaves();
     });
@@ -99,8 +84,7 @@ mongoose
       if (!company) {
         return;
       }
-
-      const celebrants = await runBirthdayNotifications(company);
+      await runBirthdayNotifications(company);
     });
 
     // Start server

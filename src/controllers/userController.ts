@@ -6,10 +6,10 @@ import ErrorResponse from '../utils/ErrorResponse';
 import { redisClient } from '../utils/redisClient';
 import User, { IUser } from '../models/user.model';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { IUserWithBalance, PaginatedProfilesResponse, UserListResponse } from '../types/auth';
+import { IUserWithBalance, PaginatedProfilesResponse } from '../types/auth';
 
 import mongoose, { Types } from 'mongoose';
-import { IOnboardingRequirement, OnboardingRequirement } from '../models/OnboardingRequirement';
+import { OnboardingRequirement } from '../models/OnboardingRequirement';
 import PayrollNew from '../models/PayrollNew';
 import { calculatePayroll } from '../utils/payrollCalculator';
 import LeaveBalance from '../models/LeaveBalance';
@@ -68,11 +68,6 @@ export const updateMyProfile = async (
         filteredUpdates[key as keyof IUser] = value as any;
       }
     });
-
-    // const updatedUser = await User.findByIdAndUpdate(targetUserId, filteredUpdates, {
-    //   new: true,
-    //   runValidators: true,
-    // }).select('-password');
 
     if (nextOfKin !== undefined) {
       filteredUpdates.nextOfKin = nextOfKin;
@@ -141,7 +136,6 @@ export const uploadProfilePicture = asyncHandler(
     if (!req.file) {
       return next(new ErrorResponse('No file uploaded', 400));
     }
-
     const result = await uploadToCloudinary(req.file.buffer, 'btm/documents', 'auto', 'btmlimited');
 
     const user = await User.findByIdAndUpdate(

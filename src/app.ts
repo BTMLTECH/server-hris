@@ -25,7 +25,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   // 'http://localhost:8083',
   // 'http://localhost:8082',
-  'http://staging-hris.btmlimited.net',
+  'http://hris.btmlimited.net',
 ];
 
 app.use(

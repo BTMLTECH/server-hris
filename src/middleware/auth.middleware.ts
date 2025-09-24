@@ -1,4 +1,4 @@
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import ErrorResponse from '../utils/ErrorResponse';
 import User from '../models/user.model';
@@ -7,8 +7,6 @@ import { TypedResponse } from '../types/typedResponse';
 import { TypedRequest } from '../types/typedRequest';
 import { AuthData } from '../types/auth';
 import { ICompany } from '../models/Company';
-import { asyncHandler } from "./asyncHandler";
-
 
 export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
   const blacklisted = await redisClient.get(`bl:${token}`);
@@ -18,10 +16,9 @@ export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
 export const protect = async (
   req: TypedRequest,
   res: TypedResponse<AuthData>,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   let token;
-
 
   // ✅ First check the Authorization header
   const authHeader = req.headers.authorization;
@@ -72,39 +69,28 @@ export const authorizeRoles =
     }
 
     if (roles.length === 0 || roles.includes('all')) {
-      return next(); // ✅ allow all authenticated users
+      return next();
     }
 
     if (!roles.includes(user.role)) {
       return next(
-        new ErrorResponse(
-          `User role '${user.role}' is not authorized to access this route`,
-          403
-        )
+        new ErrorResponse(`User role '${user.role}' is not authorized to access this route`, 403),
       );
     }
 
     next();
   };
 
-// 👥 Allows all core roles
 export const allowAllRoles = authorizeRoles('admin', 'hr', 'md', 'teamlead', 'employee');
 
-// 👤 Only admins
 export const allowAdminOnly = authorizeRoles('admin');
 
-// 👤 admins and hr
 export const allowAdminAndHR = authorizeRoles('admin', 'hr');
-
-// 👤 mds and adminMdAndAbove = authorizeRoles('admin', 'md');
 
 export const allowTeamLeadHRManager = authorizeRoles('teamlead', 'hr', 'md');
 
 export const allowTeamLead = authorizeRoles('teamlead');
 
-// 👤 employees only
 export const allowEmployeesOnly = authorizeRoles('employee');
 
-// 👤 Anyone authenticated (same as ALL)
 export const allowEveryone = authorizeRoles('all');
-

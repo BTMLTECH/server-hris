@@ -1,43 +1,9 @@
 import { sendNotification } from './sendNotification';
 import User, { IUser } from '../models/user.model';
 import Birthday from '../models/Birthday';
-
-// export async function runBirthdayNotifications(company: any) {
-//   const companyId = company?._id;
-//   if (!companyId) throw new Error("Company not found");
-
-//   const today = new Date();
-//   const currentMonth = today.getMonth() + 1;
-//   const currentDate = today.getDate();
-
-//   const birthdayUsers = await User.find({
-//     company: companyId,
-//     dateOfBirth: { $exists: true },
-//   });
-
-//   const celebrants = birthdayUsers.filter(u => {
-//     const dob = new Date(u.dateOfBirth!);
-//     return dob.getDate() === currentDate && dob.getMonth() + 1 === currentMonth;
-//   });
-
-//   for (const user of celebrants) {
-//     await sendNotification({
-//       user,
-//       type: "INFO",
-//       title: "🎉 Happy Birthday!",
-//       message: `Happy Birthday ${user.firstName}!`,
-//       emailSubject: `Happy Birthday ${user.firstName}!`,
-//       emailTemplate: "birthday.ejs",
-//       emailData: {
-//         name: user.firstName,
-//         companyName: company?.branding?.displayName || company?.name,
-//         logoUrl: company?.branding?.logoUrl,
-//       },
-//     });
-//   }
-
-//   return celebrants;
-// }
+import { IBirthdayAnalytics } from '../models/Analytics';
+import { emitToUser } from './socketEmitter';
+import { Types } from 'mongoose';
 
 export async function seedMonthlyBirthdays(company: any) {
   const today = new Date();
@@ -109,7 +75,21 @@ export async function runBirthdayNotifications(company: any) {
       },
     });
 
-    // Mark birthday as celebrated for today
+    const payload: IBirthdayAnalytics = {
+      month: today.toLocaleString('default', { month: 'long' }),
+      celebrants: [
+        {
+          staffId: (user._id as Types.ObjectId).toString(),
+          firstName: user.firstName ?? '',
+          lastName: user.lastName ?? '',
+          dateOfBirth: user.dateOfBirth ?? new Date(0),
+          profileImage: user.profileImage ?? '',
+        },
+      ],
+    };
+
+    emitToUser(user._id as Types.ObjectId, 'birthday:new', payload);
+
     record.dateCelebrated = today;
     await record.save();
   }

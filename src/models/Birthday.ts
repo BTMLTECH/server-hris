@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IBirthday extends Document {
   user: mongoose.Types.ObjectId;
   company: mongoose.Types.ObjectId;
-  staffId: string; // ✅ add this
+  staffId: string;
   firstName: string;
   lastName: string;
   email: string;

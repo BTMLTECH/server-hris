@@ -66,12 +66,31 @@ export interface ParsedClassLevel {
   grossSalary: number;
 }
 
-export const getFormattedDate = (excelDate: unknown): string | null => {
-  if (excelDate === null || excelDate === undefined || String(excelDate).trim() === '') {
-    return null;
-  }
+// export const getFormattedDate = (excelDate: unknown): string | null => {
+//   if (excelDate === null || excelDate === undefined || String(excelDate).trim() === '') {
+//     return null;
+//   }
 
-  // Handle Excel numeric dates
+//   // Handle Excel numeric dates
+//   if (typeof excelDate === 'number') {
+//     const parsed = XLSX.SSF.parse_date_code(excelDate);
+//     if (parsed) {
+//       const { y, m, d } = parsed;
+//       return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+//     }
+//   }
+
+//   const parsedDate = new Date(String(excelDate).trim());
+//   if (!isNaN(parsedDate.getTime())) {
+//     return parsedDate.toISOString().split('T')[0];
+//   }
+
+//   return null;
+// };
+export const getFormattedDate = (excelDate: unknown): string | null => {
+  if (!excelDate || String(excelDate).trim() === '') return null;
+
+  // Excel numeric date (e.g., 44444)
   if (typeof excelDate === 'number') {
     const parsed = XLSX.SSF.parse_date_code(excelDate);
     if (parsed) {
@@ -80,9 +99,32 @@ export const getFormattedDate = (excelDate: unknown): string | null => {
     }
   }
 
-  const parsedDate = new Date(String(excelDate).trim());
-  if (!isNaN(parsedDate.getTime())) {
-    return parsedDate.toISOString().split('T')[0];
+  const str = String(excelDate).trim();
+
+  // Handle DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [dd, mm, yyyy] = str.split('/');
+    return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  }
+
+  // Handle MM/DD/YYYY
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const [part1, part2, year] = str.split('/');
+    const d = parseInt(part1, 10);
+    const m = parseInt(part2, 10);
+
+    // If day > 12 → it's DD/MM/YYYY, else ambiguous
+    if (d > 12) {
+      return `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    } else {
+      return `${year}-${String(d).padStart(2, '0')}-${String(m).padStart(2, '0')}`;
+    }
+  }
+
+  // Attempt ISO date parsing
+  const date = new Date(str);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split('T')[0];
   }
 
   return null;

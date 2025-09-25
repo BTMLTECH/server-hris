@@ -52,7 +52,7 @@ export const generateRandomPassword = (length: number) => {
 };
 
 const createActivationLink = (token: Secret): string => {
-  return `http://hris.btmlimited.net/set-password?token=${token}`;
+  return `${process.env.FRONTEND_URL}/set-password?token=${token}`;
 };
 
 const createActivationToken = (user: IUser): IActivationCode => {

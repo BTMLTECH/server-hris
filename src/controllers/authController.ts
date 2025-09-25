@@ -37,7 +37,6 @@ import { OnboardingRequirement } from '../models/OnboardingRequirement';
 import { sendNotification } from '../utils/sendNotification';
 import LeaveBalance from '../models/LeaveBalance';
 import { LeaveEntitlements } from '../models/LeaveRequest';
-import { formatTimeLeft } from '../utils/formatTimeLeft';
 
 export const login = asyncHandler(
   async (req: TypedRequest<{}, {}, LoginDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
@@ -81,7 +80,7 @@ export const login = asyncHandler(
     const emailData = {
       name: user.firstName,
       code: activationCode,
-      expiresAt: `in ${formatTimeLeft(minutesLeft)}`,
+      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
       companyName: user.company?.branding?.displayName || user.company?.name,
       logoUrl: user.company?.branding?.logoUrl,
       primaryColor: user.company?.branding?.primaryColor || '#0621b6b0',
@@ -129,7 +128,7 @@ export const createActivationToken = (user: IUser): IActivationCode => {
       activationCode,
     },
     process.env.JWT_SECRET as Secret,
-    { expiresIn: '30m' },
+    { expiresIn: '7d' },
   );
 
   return { activationCode, token };
@@ -931,8 +930,7 @@ export const bulkImportUsers = asyncHandler(
         return next(new ErrorResponse('Invalid token or missing expiration', 500));
       }
 
-      // const expiryTimestamp = decoded.exp * 1000;
-      const expiryTimestamp = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      const expiryTimestamp = decoded.exp * 1000;
       const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
 
       const emailSent = await sendNotification({
@@ -946,7 +944,7 @@ export const bulkImportUsers = asyncHandler(
           name: firstName,
           activationCode,
           setupLink,
-          expiresAt: `in ${formatTimeLeft(minutesLeft)}`,
+          expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
           companyName: company?.branding?.displayName || company?.name,
           logoUrl: company?.branding?.logoUrl,
           primaryColor: company?.branding?.primaryColor || '#0621b6b0',

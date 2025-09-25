@@ -144,7 +144,7 @@ export const accessToken = (user: IUser): IActivationCode => {
       activationCode,
     },
     process.env.ACCESS_TOKEN as Secret,
-    { expiresIn: '30m' },
+    { expiresIn: '7d' },
   );
 
   return { activationCode, token };

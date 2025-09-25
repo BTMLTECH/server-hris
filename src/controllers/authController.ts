@@ -75,9 +75,7 @@ export const login = asyncHandler(
       return next(new ErrorResponse('Invalid token or missing expiration', 500));
     }
 
-    // const expiryTimestamp = decoded.exp * 1000;
-    const expiryTimestamp = Date.now() + 7 * 24 * 60 * 60 * 1000; // 1 week
-
+    const expiryTimestamp = decoded.exp * 1000;
     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
 
     const emailData = {
@@ -933,7 +931,8 @@ export const bulkImportUsers = asyncHandler(
         return next(new ErrorResponse('Invalid token or missing expiration', 500));
       }
 
-      const expiryTimestamp = decoded.exp * 1000;
+      // const expiryTimestamp = decoded.exp * 1000;
+      const expiryTimestamp = Date.now() + 7 * 24 * 60 * 60 * 1000;
       const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
 
       const emailSent = await sendNotification({
@@ -947,7 +946,7 @@ export const bulkImportUsers = asyncHandler(
           name: firstName,
           activationCode,
           setupLink,
-          expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+          expiresAt: `in ${formatTimeLeft(minutesLeft)}`,
           companyName: company?.branding?.displayName || company?.name,
           logoUrl: company?.branding?.logoUrl,
           primaryColor: company?.branding?.primaryColor || '#0621b6b0',

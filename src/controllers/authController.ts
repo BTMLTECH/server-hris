@@ -37,6 +37,7 @@ import { OnboardingRequirement } from '../models/OnboardingRequirement';
 import { sendNotification } from '../utils/sendNotification';
 import LeaveBalance from '../models/LeaveBalance';
 import { LeaveEntitlements } from '../models/LeaveRequest';
+import { formatTimeLeft } from '../utils/formatTimeLeft';
 
 export const login = asyncHandler(
   async (req: TypedRequest<{}, {}, LoginDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
@@ -742,35 +743,6 @@ export const bulkImportUsers = asyncHandler(
         );
       }
 
-      // if (
-      // !staffId ||
-      // !title ||
-      // !gender ||
-      // !email ||
-      // !role ||
-      // !firstName ||
-      // !lastName ||
-      // !department ||
-      // !employmentDate ||
-      // !mobile ||
-      // !dateOfBirth ||
-      // !stateOfOrigin ||
-      // !city ||
-      // !position ||
-      // !officeBranch ||
-      // !address ||
-      // !accountInfo?.classLevel ||
-      // !accountInfo?.basicPay ||
-      // !accountInfo?.allowances
-      // !accountInfo?.bankAccountNumber ||
-      // !accountInfo?.bankName
-      // !nextOfKin?.name ||
-      // !nextOfKin?.phone ||
-      // !nextOfKin?.relationship
-      // ) {
-      //   return next(new ErrorResponse(`Missing required fields for user ${email}`, 400));
-      // }
-
       if (nextOfKin && Object.values(nextOfKin).some((val) => val)) {
         if (!nextOfKin.name || !nextOfKin.phone || !nextOfKin.relationship) {
           return next(new ErrorResponse(`Incomplete Next of Kin details for user ${email}`, 400));
@@ -932,6 +904,7 @@ export const bulkImportUsers = asyncHandler(
 
       const expiryTimestamp = decoded.exp * 1000;
       const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+      const expiresAt = formatTimeLeft(minutesLeft);
 
       const emailSent = await sendNotification({
         user: newUser,
@@ -944,7 +917,7 @@ export const bulkImportUsers = asyncHandler(
           name: firstName,
           activationCode,
           setupLink,
-          expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+          expiresAt,
           companyName: company?.branding?.displayName || company?.name,
           logoUrl: company?.branding?.logoUrl,
           primaryColor: company?.branding?.primaryColor || '#0621b6b0',

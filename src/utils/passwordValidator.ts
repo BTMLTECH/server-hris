@@ -1,7 +1,7 @@
 // utils/passwordValidator.ts
 
-import { IUser } from "../models/user.model";
-import { IActivationCode } from "../types/auth";
+import { IUser } from '../models/user.model';
+import { IActivationCode } from '../types/auth';
 import jwt, { Secret } from 'jsonwebtoken';
 
 export interface PasswordConfig {
@@ -11,7 +11,7 @@ export interface PasswordConfig {
   requireSpecialChar?: boolean;
 }
 
- const validatePassword = (password: string, config: PasswordConfig) => {
+const validatePassword = (password: string, config: PasswordConfig) => {
   // Set defaults if not provided
   const minLength = config.minLength || 8;
   const uppercaseRegex = config.requireUppercase ? /[A-Z]/ : null;
@@ -41,10 +41,9 @@ export interface PasswordConfig {
   return true;
 };
 
-
 export const generateRandomPassword = (length: number) => {
   // const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  const chars = '0123456789';  
+  const chars = '0123456789';
   let password = '';
   for (let i = 0; i < length; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -52,15 +51,9 @@ export const generateRandomPassword = (length: number) => {
   return password;
 };
 
-
- const createActivationLink = (token: Secret): string => {
-
+const createActivationLink = (token: Secret): string => {
   return `http://staging-hris.btmlimited.net/set-password?token=${token}`;
-
-
 };
-
-
 
 const createActivationToken = (user: IUser): IActivationCode => {
   // const activationCode = Math.floor(1000 + Math.random() * 900000).toString();
@@ -72,14 +65,14 @@ const createActivationToken = (user: IUser): IActivationCode => {
       activationCode,
     },
     process.env.JWT_SECRET as Secret,
-    { expiresIn: "30m" }
+    { expiresIn: '7d' },
   );
 
   return { activationCode, token };
 };
 
 // This is the existing accessToken function you have
- const accessToken = (user: IUser): IActivationCode => {
+const accessToken = (user: IUser): IActivationCode => {
   const activationCode = generateRandomPassword(12);
 
   const token = jwt.sign(
@@ -88,11 +81,10 @@ const createActivationToken = (user: IUser): IActivationCode => {
       activationCode,
     },
     process.env.ACCESS_TOKEN as Secret,
-    { expiresIn: "30m" }
+    { expiresIn: '7d' },
   );
 
   return { activationCode, token };
 };
-
 
 export { createActivationToken, accessToken, createActivationLink, validatePassword };

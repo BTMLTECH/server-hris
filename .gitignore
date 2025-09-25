@@ -20,6 +20,7 @@ pids/
 # Environment variables
 .env
 .env.*.local
+.venv
 
 # Build outputs
 dist/

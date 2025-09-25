@@ -22,18 +22,11 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const allowedOrigins = [
-  // 'http://localhost:8083',
-  // 'http://localhost:8082',
-  'http://hris.btmlimited.net',
-  // process.env.FRONTEND_URL!,
-];
-console.log('allowedOrigins', allowedOrigins);
+const allowedOrigins = [process.env.FRONTEND_URL!];
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
-        // Allow server-side requests like curl or Postman
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {

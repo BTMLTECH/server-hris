@@ -4,7 +4,11 @@
     "module": "CommonJS",
     "strict": true,
     "esModuleInterop": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": "src",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
   },
   "include": ["src", "scripts"],
+  "exclude": ["node_modules", "dist", ".venv"]
 }

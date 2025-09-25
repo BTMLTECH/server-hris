@@ -77,11 +77,13 @@ export const login = asyncHandler(
 
     const expiryTimestamp = decoded.exp * 1000;
     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+    const expiresAt = formatTimeLeft(minutesLeft);
 
     const emailData = {
       name: user.firstName,
       code: activationCode,
-      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+      // expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+      expiresAt,
       companyName: user.company?.branding?.displayName || user.company?.name,
       logoUrl: user.company?.branding?.logoUrl,
       primaryColor: user.company?.branding?.primaryColor || '#0621b6b0',

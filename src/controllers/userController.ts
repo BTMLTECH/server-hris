@@ -17,7 +17,7 @@ import LeaveBalance from '../models/LeaveBalance';
 export const getMyProfile = asyncHandler(
   async (
     req: TypedRequest<{}, {}, {}>,
-    res: TypedResponse<{ user: IUser }>,
+    res: TypedResponse<{ user: IUserWithBalance }>,
     next: NextFunction,
   ) => {
     const userId = req.user?._id;
@@ -27,15 +27,34 @@ export const getMyProfile = asyncHandler(
       return next(new ErrorResponse('Unauthorized or missing company context', 403));
     }
 
-    const user = await User.findOne({ _id: userId, company: companyId }).select('-password');
+    const user = await User.findOne({ _id: userId, company: companyId })
+      .select('-password')
+      .populate('requirements')
+      .populate('company')
+      .lean({ virtuals: true });
 
     if (!user) {
       return next(new ErrorResponse('User not found in your company', 404));
     }
 
+    const currentYear = new Date().getFullYear();
+    const leaveBalance = await LeaveBalance.findOne({
+      user: userId,
+      company: companyId,
+      year: currentYear,
+    }).lean();
+
+    const userWithBalance: IUserWithBalance = {
+      ...user,
+      leaveBalance: leaveBalance ?? {
+        balances: { annual: 0, compassionate: 0, maternity: 0 },
+        year: currentYear,
+      },
+    };
+
     res.status(200).json({
       success: true,
-      data: { user },
+      data: { user: userWithBalance },
     });
   },
 );
@@ -180,25 +199,14 @@ export const getAllUsers = asyncHandler(
       User.countDocuments({ company: companyId }),
     ]);
 
-    // get all leave balances for these users in bulk
     const userIds = users.map((u) => u._id);
     const leaveBalances = await LeaveBalance.find({
       user: { $in: userIds },
       company: companyId,
-      year: new Date().getFullYear(), // only this year’s balance
+      year: new Date().getFullYear(),
     }).lean();
 
-    // create quick lookup by userId
     const leaveMap = new Map(leaveBalances.map((lb) => [lb.user.toString(), lb]));
-
-    // attach leave balance to each user
-    // const usersWithBalances = users.map((u) => ({
-    //   ...u,
-    //   leaveBalance: leaveMap.get(u._id.toString()) ?? {
-    //     balances: { annual: 0, compassionate: 0, maternity: 0 },
-    //     year: new Date().getFullYear(),
-    //   },
-    // }));
 
     const usersWithBalances: IUserWithBalance[] = users.map(
       (u): IUserWithBalance => ({

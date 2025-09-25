@@ -52,3 +52,4 @@ jest-coverage/
 # Optional: MongoDB dump files
 dump/
 *.gz
+.env

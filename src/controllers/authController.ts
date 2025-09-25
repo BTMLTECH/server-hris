@@ -759,6 +759,10 @@ export const bulkImportUsers = asyncHandler(
         skipped.push(normalizedEmail);
         continue;
       }
+      const dob = dateOfBirth ? new Date(dateOfBirth.split('/').reverse().join('-')) : null;
+      const employMent = employmentDate
+        ? new Date(employmentDate.split('/').reverse().join('-'))
+        : null;
 
       // 👤 Create user
       const newUser = await User.create({
@@ -773,9 +777,9 @@ export const bulkImportUsers = asyncHandler(
         role,
         isActive: true,
         company: companyId,
-        employmentDate,
+        employmentDate: employMent,
         mobile,
-        dateOfBirth,
+        dateOfBirth: dob,
         position,
         address,
         city,

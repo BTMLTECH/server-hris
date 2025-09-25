@@ -37,6 +37,7 @@ import { OnboardingRequirement } from '../models/OnboardingRequirement';
 import { sendNotification } from '../utils/sendNotification';
 import LeaveBalance from '../models/LeaveBalance';
 import { LeaveEntitlements } from '../models/LeaveRequest';
+import { formatTimeLeft } from '../utils/formatTimeLeft';
 
 export const login = asyncHandler(
   async (req: TypedRequest<{}, {}, LoginDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
@@ -75,13 +76,14 @@ export const login = asyncHandler(
     }
 
     // const expiryTimestamp = decoded.exp * 1000;
-    const expiryTimestamp = Date.now() + 48 * 60 * 60 * 1000;
+    const expiryTimestamp = Date.now() + 7 * 24 * 60 * 60 * 1000; // 1 week
+
     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
 
     const emailData = {
       name: user.firstName,
       code: activationCode,
-      expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+      expiresAt: `in ${formatTimeLeft(minutesLeft)}`,
       companyName: user.company?.branding?.displayName || user.company?.name,
       logoUrl: user.company?.branding?.logoUrl,
       primaryColor: user.company?.branding?.primaryColor || '#0621b6b0',

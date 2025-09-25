@@ -22,11 +22,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const allowedOrigins = [
-  // 'http://localhost:8083',
-  // 'http://localhost:8082',
-  'http://hris.btmlimited.net',
-];
+const allowedOrigins = [process.env.FRONTEND_URL!];
 
 app.use(
   cors({

@@ -20,16 +20,11 @@ mongoose
     const server = http.createServer(app);
     const io = new Server(server, {
       cors: {
-        origin: [
-          // 'http://localhost:8083',
-          // 'http://localhost:8082',
-          'http://hris.btmlimited.net',
-        ],
+        origin: [process.env.FRONTEND_URL!],
         credentials: true,
       },
     });
 
-    // Make io globally available
     app.set('io', io);
     (globalThis as any).io = io;
 

@@ -1,5 +1,5 @@
-import cloudinary from "cloudinary";
-import { Readable } from "stream";
+import cloudinary from 'cloudinary';
+import { Readable } from 'stream';
 
 // Cloudinary Config (from .env)
 cloudinary.v2.config({
@@ -25,9 +25,9 @@ interface UploadResult {
 export const uploadToCloudinary = (
   buffer: Buffer,
   folder: string,
-  resourceType: "image" | "raw" | "auto" = "raw",
+  resourceType: 'image' | 'raw' | 'auto' = 'raw',
   publicId?: string,
-  uploadPreset?: string
+  uploadPreset?: string,
 ): Promise<UploadResult> => {
   return new Promise((resolve, reject) => {
     const options: any = {
@@ -36,28 +36,25 @@ export const uploadToCloudinary = (
     };
 
     if (uploadPreset) {
-      options.upload_preset = uploadPreset; // use only if explicitly provided
+      options.upload_preset = uploadPreset;
     }
 
     if (publicId) {
-      options.public_id = publicId;      // clean filename
-      options.overwrite = true;          // overwrite if exists
-      options.unique_filename = false;   // avoid random hash
+      options.public_id = publicId;
+      options.overwrite = true;
+      options.unique_filename = false;
     }
 
-    const stream = cloudinary.v2.uploader.upload_stream(
-      options,
-      (error, result) => {
-        if (error || !result) {
-          reject(error || new Error("Cloudinary upload failed"));
-        } else {
-          resolve({
-            secure_url: result.secure_url,
-            public_id: result.public_id,
-          });
-        }
+    const stream = cloudinary.v2.uploader.upload_stream(options, (error, result) => {
+      if (error || !result) {
+        reject(error || new Error('Cloudinary upload failed'));
+      } else {
+        resolve({
+          secure_url: result.secure_url,
+          public_id: result.public_id,
+        });
       }
-    );
+    });
 
     Readable.from(buffer).pipe(stream);
   });

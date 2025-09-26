@@ -386,7 +386,7 @@ export const getAttendanceHistory = asyncHandler(
 
     const [attendanceRecords, total] = await Promise.all([
       Attendance.find(query)
-        .populate<{ user: IUser }>('user', 'staffId firstName lastName email role')
+        .populate<{ user: IUser }>('user', 'staffId firstName lastName email role, department')
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum),

@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import ErrorResponse from '../utils/ErrorResponse';
 
 export const ErrorMiddleware = (err: any, req: Request, res: Response, next: NextFunction) => {
-  const isProd = process.env.NODE_ENV === 'development';
+  const isProd = process.env.NODE_ENV === 'production';
   err.statusCode = err.statusCode || 500;
   err.message = err.message || 'Internal server error';
 
@@ -28,7 +28,6 @@ export const ErrorMiddleware = (err: any, req: Request, res: Response, next: Nex
     err = new ErrorResponse(message, 404);
   }
 
-  // 🔒 Only log unexpected errors in development
   if (!isProd) {
     console.error(err);
   }

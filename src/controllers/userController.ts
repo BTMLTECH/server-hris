@@ -173,7 +173,11 @@ export const uploadProfilePicture = asyncHandler(
 
 export const getAllUsers = asyncHandler(
   async (
-    req: TypedRequest<{}, { page?: string; limit?: string }, {}>,
+    req: TypedRequest<
+      {},
+      { page?: string; limit?: string; search?: string; department?: string; status?: string },
+      {}
+    >,
     res: TypedResponse<PaginatedProfilesResponse>,
     next: NextFunction,
   ) => {
@@ -186,8 +190,34 @@ export const getAllUsers = asyncHandler(
     const limit = parseInt(req.query.limit ?? '100', 10);
     const skip = (page - 1) * limit;
 
+    const search = req.query.search?.trim();
+    const department = req.query.department;
+    const status = req.query.status;
+
+    // --- Base filters ---
+    const filters: any = { company: companyId };
+
+    // Default: only active users unless status explicitly provided
+    if (status) {
+      filters.status = status;
+    } else {
+      filters.status = 'active'; // 🔹 default
+    }
+
+    if (search) {
+      filters.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (department && department !== 'all') {
+      filters.department = department;
+    }
+
     const [users, total] = await Promise.all([
-      User.find({ company: companyId })
+      User.find(filters)
         .select('-password')
         .skip(skip)
         .limit(limit)
@@ -196,7 +226,7 @@ export const getAllUsers = asyncHandler(
         })
         .populate('company')
         .lean({ virtuals: true }),
-      User.countDocuments({ company: companyId }),
+      User.countDocuments(filters),
     ]);
 
     const userIds = users.map((u) => u._id);

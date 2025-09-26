@@ -45,6 +45,8 @@ export const getAllPayrolls = asyncHandler(
       { $match: matchStage },
       { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user' } },
       { $unwind: '$user' },
+      { $match: { 'user.status': 'active', 'user.isActive': true } },
+
       {
         $match: excludeRoles(),
       },

@@ -1,18 +1,17 @@
-import mongoose from "mongoose";
-import { ILeaveRequest } from "../models/LeaveRequest"
-import { IUser } from "../models/user.model";
-import { ILeaveBalance } from "../models/LeaveBalance";
-
+import mongoose from 'mongoose';
+import { ILeaveRequest } from '../models/LeaveRequest';
+import { IUser } from '../models/user.model';
+import { ILeaveBalance } from '../models/LeaveBalance';
 
 export interface CreateLeaveRequestBody {
-  type: "compassionate" | "annual" | "maternity";
+  type: 'compassionate' | 'annual' | 'maternity';
   startDate: string;
   endDate: string;
   days: number;
   reason: string;
   teamleadId: string;
-  typeIdentify: "leave";
-  allowance?: "yes" | "no";
+  typeIdentify: 'leave';
+  allowance?: 'yes' | 'no';
   relievers: string[];
 }
 
@@ -35,7 +34,6 @@ export interface GetLeaveActivityFeedDTO {
   status?: string;
   from?: string;
   to?: string;
-
 }
 
 export interface ReviewTrailItem {
@@ -44,6 +42,24 @@ export interface ReviewTrailItem {
   action: 'approved' | 'rejected' | 'pending';
   date: string;
   note?: string;
+}
+
+export interface LeaveBalanceItem {
+  type: 'annual' | 'maternity' | 'compassionate';
+  remaining: number;
+}
+
+export interface LeaveActivityFeedResponse {
+  myRequests: LeaveActivityFeedItem[];
+  approvals: LeaveActivityFeedItem[];
+  allApproved: LeaveActivityFeedItem[];
+  summary: LeaveActivitySummary;
+  balance: LeaveBalanceItem[];
+  pagination: {
+    myRequests: { total: number; page: number; limit: number; pages: number };
+    approvals: { total: number; page: number; limit: number; pages: number };
+    allApproved?: { total: number; page: number; limit: number; pages: number };
+  };
 }
 
 export interface LeaveActivityFeedItem {
@@ -62,6 +78,18 @@ export interface LeaveActivityFeedItem {
   reviewTrail?: ReviewTrailItem[];
 }
 
+export interface LeaveActivityFeedResponse {
+  myRequests: LeaveActivityFeedItem[];
+  approvals: LeaveActivityFeedItem[];
+  allApproved: LeaveActivityFeedItem[];
+  summary: LeaveActivitySummary;
+  balance: LeaveBalanceItem[];
+  pagination: {
+    myRequests: { total: number; page: number; limit: number; pages: number };
+    approvals: { total: number; page: number; limit: number; pages: number };
+    allApproved?: { total: number; page: number; limit: number; pages: number };
+  };
+}
 
 export interface TeamLeaveActivityItem {
   employee?: string;
@@ -75,16 +103,11 @@ export interface TeamLeaveActivityItem {
   appliedDate: Date;
 }
 
-
-
-
-
 export type PopulatedLeaveRequest = Omit<ILeaveRequest, 'user' | 'teamlead'> & {
   id: mongoose.Types.ObjectId;
   user: IUser;
   teamlead: IUser;
 };
-
 
 export interface LeaveActivitySummary {
   pending: number;
@@ -96,8 +119,6 @@ export interface LeaveActivityFeedResponse {
   feed: LeaveActivityFeedItem[];
   summary: LeaveActivitySummary;
 }
-
-
 
 export interface CreateLeaveBalanceBody {
   user: string;
@@ -111,16 +132,13 @@ export interface CreateLeaveBalanceBody {
 
 // instead of requiring full balances
 export interface UpdateLeaveBalanceBody {
-  leaveType: "annual" | "compassionate" | "maternity";
+  leaveType: 'annual' | 'compassionate' | 'maternity';
   balance: number;
   year?: number;
 }
 
-
-
-
 export interface PaginatedLeaveBalanceResponse {
-  data: any;  
+  data: any;
   pagination: {
     total: number;
     page: number;
@@ -131,7 +149,7 @@ export interface PaginatedLeaveBalanceResponse {
 }
 
 export interface SingleLeaveBalanceResponse {
-  data: ILeaveBalance ;
+  data: ILeaveBalance;
 }
 
 export interface DeleteLeaveBalanceResponse {

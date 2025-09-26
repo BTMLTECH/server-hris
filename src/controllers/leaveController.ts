@@ -442,6 +442,7 @@ export const getLeaveActivityFeed = asyncHandler(
     const userId = req.user?._id as Types.ObjectId;
     const userRole = req.user?.role;
     const { status, from, to, page = '1', limit = '20' } = req.query;
+    const company = req.company;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -480,6 +481,7 @@ export const getLeaveActivityFeed = asyncHandler(
         .lean(),
       LeaveRequest.countDocuments({ ...baseFilter, user: userId }),
     ]);
+    console.log('myRequestsRaw', myRequestsRaw);
 
     // 🔹 3) Approvals (reliever/teamlead/hr)
     const roleConditions: any[] = [];
@@ -631,38 +633,40 @@ export const getLeaveActivityFeed = asyncHandler(
         }));
 
     const payload: any = {
-      myRequests: myRequestsRaw.map(mapLeave),
-      approvals: approvalsRaw.map(mapLeave),
-      allApproved: allApprovedRaw.map(mapLeave),
-      pagination: {
-        myRequests: {
-          total: myTotal,
-          page: pageNum,
-          limit: pageSize,
-          pages: Math.ceil(myTotal / pageSize),
+      data: {
+        myRequests: myRequestsRaw.map(mapLeave),
+        approvals: approvalsRaw.map(mapLeave),
+        allApproved: allApprovedRaw.map(mapLeave),
+        pagination: {
+          myRequests: {
+            total: myTotal,
+            page: pageNum,
+            limit: pageSize,
+            pages: Math.ceil(myTotal / pageSize),
+          },
+          approvals: {
+            total: approvalsTotal,
+            page: pageNum,
+            limit: pageSize,
+            pages: Math.ceil(approvalsTotal / pageSize),
+          },
+          allApproved: {
+            total: allApprovedTotal,
+            page: pageNum,
+            limit: pageSize,
+            pages: Math.ceil(allApprovedTotal / pageSize),
+          },
         },
-        approvals: {
-          total: approvalsTotal,
-          page: pageNum,
-          limit: pageSize,
-          pages: Math.ceil(approvalsTotal / pageSize),
-        },
-        allApproved: {
-          total: allApprovedTotal,
-          page: pageNum,
-          limit: pageSize,
-          pages: Math.ceil(allApprovedTotal / pageSize),
-        },
+        summary,
+        balance,
       },
-      summary,
-      balance,
     };
 
-    emitToUser(userId, 'leave:update', payload);
+    emitToUser(userId, 'leave:update', payload.data);
 
     res.status(200).json({
       success: true,
-      data: payload,
+      data: payload.data,
     });
   },
 );

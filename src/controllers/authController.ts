@@ -686,6 +686,269 @@ export const inviteUser = asyncHandler(
   },
 );
 
+// export const bulkImportUsers = asyncHandler(
+//   async (
+//     req: TypedRequest<{}, InviteUserDTO[] | {}, {}>,
+//     res: TypedResponse<BulkImportResponse>,
+//     next: NextFunction,
+//   ) => {
+//     const company = req.company;
+//     const companyId = company?._id;
+//     const userId = req.user?._id;
+
+//     let users = [];
+
+//     if (req.file) {
+//       users = parseExcelUsers(req.file.buffer);
+//     } else if (Array.isArray(req.body)) {
+//       users = req.body;
+//     } else {
+//       return next(new ErrorResponse('Invalid input. Expecting an array or an Excel file.', 400));
+//     }
+
+//     const created: string[] = [];
+//     const updated: string[] = [];
+//     const skipped: string[] = [];
+
+//     for (const user of users) {
+//       const {
+//         staffId,
+//         title,
+//         firstName,
+//         lastName,
+//         middleName,
+//         gender,
+//         dateOfBirth,
+//         stateOfOrigin,
+//         address,
+//         city,
+//         mobile,
+//         email,
+//         department,
+//         position,
+//         officeBranch,
+//         employmentDate,
+//         accountInfo,
+//         role,
+//         nextOfKin,
+//         requirements,
+//       } = user;
+
+//       // 🔒 Validation
+//       if (!VALID_DEPARTMENTS.includes(department)) {
+//         return next(new ErrorResponse(`Invalid department: ${department}`, 400));
+//       }
+
+//       if (!validateBankName(accountInfo?.bankName)) {
+//         return next(
+//           new ErrorResponse(`Invalid bank name for user ${email}: ${accountInfo?.bankName}`, 400),
+//         );
+//       }
+
+//       if (nextOfKin && Object.values(nextOfKin).some((val) => val)) {
+//         if (!nextOfKin.name || !nextOfKin.phone || !nextOfKin.relationship) {
+//           return next(new ErrorResponse(`Incomplete Next of Kin details for user ${email}`, 400));
+//         }
+//       }
+
+//       const normalizedEmail = email.toLowerCase().trim();
+//       const existing = await User.findOne({ email: normalizedEmail });
+//       // if (existing) {
+//       //   return next(new ErrorResponse(`User already exists: ${normalizedEmail}`, 400));
+//       // }
+
+//       if (existing) {
+//         skipped.push(normalizedEmail);
+//         continue;
+//       }
+
+//       // 👤 Create user
+//       const newUser = await User.create({
+//         staffId,
+//         title,
+//         gender,
+//         firstName,
+//         lastName,
+//         middleName,
+//         email: normalizedEmail,
+//         department,
+//         role,
+//         isActive: true,
+//         company: companyId,
+//         employmentDate,
+//         mobile,
+//         dateOfBirth,
+//         position,
+//         address,
+//         city,
+//         stateOfOrigin,
+//         officeBranch,
+//         accountInfo,
+//         nextOfKin,
+//         status: 'active',
+//       });
+
+//       // 💰 Payroll
+//       const payrollResult = calculatePayroll({
+//         basicSalary: accountInfo.basicPay,
+//         totalAllowances: accountInfo.allowances,
+//       });
+
+//       await PayrollNew.create({
+//         user: newUser._id,
+//         classLevel: accountInfo.classLevel,
+//         basicSalary: accountInfo.basicPay,
+//         totalAllowances: payrollResult.totalAllowances,
+//         grossSalary: payrollResult.grossSalary,
+//         pension: payrollResult.pension,
+//         CRA: payrollResult.CRA,
+//         taxableIncome: payrollResult.taxableIncome,
+//         tax: payrollResult.tax,
+//         company: companyId,
+//         netSalary: payrollResult.netSalary,
+//         taxBands: payrollResult.taxBands,
+//         month: new Date().getMonth() + 1,
+//         year: new Date().getFullYear(),
+//         status: 'pending',
+//       });
+
+//       await LeaveBalance.create({
+//         user: newUser._id,
+//         company: companyId,
+//         balances: {
+//           annual: LeaveEntitlements.annual,
+//           compassionate: LeaveEntitlements.compassionate,
+//           maternity: LeaveEntitlements.maternity,
+//         },
+//         year: new Date().getFullYear(),
+//       });
+
+//       // 📋 Requirements
+//       let createdRequirements: any[] = [];
+//       if (requirements && requirements.length > 0) {
+//         for (const req of requirements) {
+//           const tasks = req.tasks.map((task: any) => ({
+//             name: task.name,
+//             category: task.category,
+//             completed: Boolean(task.completed),
+//             completedAt: task.completed
+//               ? task.completedAt
+//                 ? new Date(task.completedAt)
+//                 : new Date()
+//               : undefined,
+//           }));
+
+//           const doc = await OnboardingRequirement.create({
+//             employee: newUser._id,
+//             department: req.department,
+//             tasks,
+//             createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+//           });
+
+//           createdRequirements.push({
+//             employee: doc.employee?.toString() || '',
+//             department: doc.department,
+//             tasks: doc.tasks.map((t: any) => ({
+//               name: t.name,
+//               category: t.category,
+//               completed: t.completed,
+//               completedAt: t.completedAt || undefined,
+//             })),
+//             createdAt: doc.createdAt,
+//           });
+//         }
+//       }
+
+//       // 2️⃣ Notify relevant roles
+//       const departmentTasks: Record<string, string[]> = {};
+//       for (const req of createdRequirements) {
+//         departmentTasks[req.department] = req.tasks.map((t: any) => t.name);
+//       }
+
+//       await Promise.all(
+//         Object.entries(departmentTasks).map(async ([dept, tasks]) => {
+//           const roleToNotify = dept.toLowerCase() === 'hr' ? 'hr' : 'teamlead';
+//           const leadUser = await User.findOne({
+//             department: dept,
+//             role: roleToNotify,
+//           });
+//           if (!leadUser) return;
+
+//           await sendNotification({
+//             user: leadUser,
+//             type: 'INFO',
+//             title: `New Onboarding Tasks`,
+//             message: `A new staff (${firstName} ${lastName}) has the following ${dept} requirements: ${tasks.join(
+//               ', ',
+//             )}`,
+//             emailSubject: `Onboarding Tasks for ${dept}`,
+//             emailTemplate: 'requirement-notification.ejs',
+//             emailData: {
+//               name: leadUser.firstName,
+//               staffName: `${firstName} ${lastName}`,
+//               department: dept,
+//               tasks,
+//               companyName: company?.branding?.displayName || company?.name,
+//               logoUrl: company?.branding?.logoUrl,
+//               primaryColor: company?.branding?.primaryColor || '#0621b6b0',
+//             },
+//           });
+//         }),
+//       );
+
+//       const { activationCode, token } = (exports as any).accessToken(newUser);
+//       const setupLink = createActivationLink(token);
+//       const decoded = jwt.decode(token) as { exp?: number } | null;
+
+//       if (!decoded?.exp) {
+//         return next(new ErrorResponse('Invalid token or missing expiration', 500));
+//       }
+
+//       const expiryTimestamp = decoded.exp * 1000;
+//       const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+//       const expiresAt = formatTimeLeft(minutesLeft);
+
+//       const emailSent = await sendNotification({
+//         user: newUser,
+//         type: 'INVITE',
+//         title: 'Account Setup Invitation',
+//         message: `Welcome ${firstName}, please activate your account.`,
+//         emailSubject: 'Account Setup Invitation',
+//         emailTemplate: 'account-setup.ejs',
+//         emailData: {
+//           name: firstName,
+//           activationCode,
+//           setupLink,
+//           expiresAt,
+//           companyName: company?.branding?.displayName || company?.name,
+//           logoUrl: company?.branding?.logoUrl,
+//           primaryColor: company?.branding?.primaryColor || '#0621b6b0',
+//         },
+//       });
+
+//       created.push(normalizedEmail);
+
+//       if (emailSent) {
+//         await User.findByIdAndUpdate(newUser._id, { isActive: true });
+//       }
+//     }
+
+//     // 📝 Audit Log
+//     await logAudit({
+//       userId,
+//       action: 'BULK_IMPORT',
+//       status: 'SUCCESS',
+//       ip: req.ip,
+//       userAgent: req.get('user-agent'),
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Users imported successfully.',
+//       data: { created, updated },
+//     });
+//   },
+// );
 export const bulkImportUsers = asyncHandler(
   async (
     req: TypedRequest<{}, InviteUserDTO[] | {}, {}>,
@@ -709,6 +972,9 @@ export const bulkImportUsers = asyncHandler(
     const created: string[] = [];
     const updated: string[] = [];
     const skipped: string[] = [];
+
+    // collect async tasks here
+    const emailPromises: Promise<any>[] = [];
 
     for (const user of users) {
       const {
@@ -753,16 +1019,11 @@ export const bulkImportUsers = asyncHandler(
 
       const normalizedEmail = email.toLowerCase().trim();
       const existing = await User.findOne({ email: normalizedEmail });
-      // if (existing) {
-      //   return next(new ErrorResponse(`User already exists: ${normalizedEmail}`, 400));
-      // }
 
       if (existing) {
         skipped.push(normalizedEmail);
         continue;
       }
-      const dob = dateOfBirth ? new Date(dateOfBirth.split('/').reverse().join('-')) : null;
-      const state = stateOfOrigin?.trim() || null;
 
       // 👤 Create user
       const newUser = await User.create({
@@ -826,7 +1087,6 @@ export const bulkImportUsers = asyncHandler(
       });
 
       // 📋 Requirements
-      let createdRequirements: any[] = [];
       if (requirements && requirements.length > 0) {
         for (const req of requirements) {
           const tasks = req.tasks.map((task: any) => ({
@@ -840,64 +1100,16 @@ export const bulkImportUsers = asyncHandler(
               : undefined,
           }));
 
-          const doc = await OnboardingRequirement.create({
+          await OnboardingRequirement.create({
             employee: newUser._id,
             department: req.department,
             tasks,
             createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
           });
-
-          createdRequirements.push({
-            employee: doc.employee?.toString() || '',
-            department: doc.department,
-            tasks: doc.tasks.map((t: any) => ({
-              name: t.name,
-              category: t.category,
-              completed: t.completed,
-              completedAt: t.completedAt || undefined,
-            })),
-            createdAt: doc.createdAt,
-          });
         }
       }
 
-      // 2️⃣ Notify relevant roles
-      const departmentTasks: Record<string, string[]> = {};
-      for (const req of createdRequirements) {
-        departmentTasks[req.department] = req.tasks.map((t: any) => t.name);
-      }
-
-      await Promise.all(
-        Object.entries(departmentTasks).map(async ([dept, tasks]) => {
-          const roleToNotify = dept.toLowerCase() === 'hr' ? 'hr' : 'teamlead';
-          const leadUser = await User.findOne({
-            department: dept,
-            role: roleToNotify,
-          });
-          if (!leadUser) return;
-
-          await sendNotification({
-            user: leadUser,
-            type: 'INFO',
-            title: `New Onboarding Tasks`,
-            message: `A new staff (${firstName} ${lastName}) has the following ${dept} requirements: ${tasks.join(
-              ', ',
-            )}`,
-            emailSubject: `Onboarding Tasks for ${dept}`,
-            emailTemplate: 'requirement-notification.ejs',
-            emailData: {
-              name: leadUser.firstName,
-              staffName: `${firstName} ${lastName}`,
-              department: dept,
-              tasks,
-              companyName: company?.branding?.displayName || company?.name,
-              logoUrl: company?.branding?.logoUrl,
-              primaryColor: company?.branding?.primaryColor || '#0621b6b0',
-            },
-          });
-        }),
-      );
-
+      // 🔑 Invite user email
       const { activationCode, token } = (exports as any).accessToken(newUser);
       const setupLink = createActivationLink(token);
       const decoded = jwt.decode(token) as { exp?: number } | null;
@@ -910,7 +1122,8 @@ export const bulkImportUsers = asyncHandler(
       const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
       const expiresAt = formatTimeLeft(minutesLeft);
 
-      const emailSent = await sendNotification({
+      // 👉 push email sending into promises
+      const emailPromise = sendNotification({
         user: newUser,
         type: 'INVITE',
         title: 'Account Setup Invitation',
@@ -926,13 +1139,21 @@ export const bulkImportUsers = asyncHandler(
           logoUrl: company?.branding?.logoUrl,
           primaryColor: company?.branding?.primaryColor || '#0621b6b0',
         },
+      }).then(async (emailSent) => {
+        if (emailSent) {
+          await User.findByIdAndUpdate(newUser._id, { isActive: true });
+        }
       });
 
+      emailPromises.push(emailPromise);
       created.push(normalizedEmail);
+    }
 
-      if (emailSent) {
-        await User.findByIdAndUpdate(newUser._id, { isActive: true });
-      }
+    // 🚀 Run all email sending in batches of 5
+    const batchSize = 5;
+    for (let i = 0; i < emailPromises.length; i += batchSize) {
+      const batch = emailPromises.slice(i, i + batchSize);
+      await Promise.all(batch);
     }
 
     // 📝 Audit Log

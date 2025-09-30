@@ -1,13 +1,11 @@
 import { NextFunction } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
 import Analytics, {
-  IAnalytics,
   ISalaryByDept,
   ISalaryByRole,
   ILeaveAnalytics,
   IHiringTrend,
   IBirthdayAnalytics,
-  IChartConfig,
   IKeyMetrics,
   IDashboardCards,
   IRecentActivity,
@@ -245,7 +243,6 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       ]);
 
       // 7. Calculate Key Metrics
-      const lastQuarterStart = new Date(now.getFullYear(), now.getMonth() - 3, 1);
       const lastQuarterEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
       const employeesNow = await User.countDocuments({ company: companyId, status: 'active' });

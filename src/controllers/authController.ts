@@ -19,7 +19,6 @@ import {
   InviteUserDTO,
   LoginDTO,
   RegisterAdminDto,
-  SetPasswordDto,
   SetupPasswordDTO,
   SetupPasswordQuery,
   Verify2FADTO,
@@ -41,7 +40,9 @@ import { formatTimeLeft } from '../utils/formatTimeLeft';
 
 export const login = asyncHandler(
   async (req: TypedRequest<{}, {}, LoginDTO>, res: TypedResponse<AuthData>, next: NextFunction) => {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+
+    email = email.trim().toLowerCase();
 
     const user = await User.findOne({ email })
       .select('+password')
@@ -214,7 +215,8 @@ export const registerAdmin = asyncHandler(
 
 export const verify2FA = asyncHandler(
   async (req: TypedRequest<{}, {}, Verify2FADTO>, res: TypedResponse<{}>, next: NextFunction) => {
-    const { email, code } = req.body;
+    let { email, code } = req.body;
+    email = email.trim().toLowerCase();
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -1289,11 +1291,6 @@ export const refreshAccessToken = async (
     return next(new ErrorResponse('Invalid or expired refresh token', 401));
   }
 };
-
-interface NextStaffIdResponse {
-  success: boolean;
-  data: string;
-}
 
 export const getNextStaffId = asyncHandler(
   async (req: TypedRequest, res: any, next: NextFunction) => {

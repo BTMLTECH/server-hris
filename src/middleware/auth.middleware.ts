@@ -15,7 +15,7 @@ export const isTokenBlacklisted = async (token: string): Promise<boolean> => {
 
 export const protect = async (
   req: TypedRequest,
-  res: TypedResponse<AuthData>,
+  _: TypedResponse<AuthData>,
   next: NextFunction,
 ) => {
   let token;
@@ -61,7 +61,7 @@ export const protect = async (
 
 export const authorizeRoles =
   (...roles: string[]) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, _: Response, next: NextFunction) => {
     const user = (req as any).user;
 
     if (!user) {

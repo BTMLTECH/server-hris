@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
 import ErrorResponse from '../utils/ErrorResponse';
 import ClassLevel, { IClassLevel } from '../models/ClassLevel';

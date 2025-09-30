@@ -23,8 +23,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 const allowedOrigins = [
-  // 'http://localhost:8082',
-  process.env.FRONTEND_URL!,
+  'http://localhost:8082',
+  // process.env.FRONTEND_URL!,
 ];
 app.use(
   cors({

@@ -5,7 +5,7 @@ import { redisClient } from './utils/redisClient';
 import { expireUnreviewedLeaves } from './jobs/expireLeaves';
 import cron from 'node-cron';
 import { autoCheckoutForgotten } from './controllers/attendanceController';
-import { Server, Server as SocketIOServer } from 'socket.io';
+import { Server } from 'socket.io';
 import http from 'http';
 import { generateNextMonthPayroll } from './jobs/generatePayroll';
 import { runBirthdayNotifications, seedMonthlyBirthdays } from './utils/birthdayNotifications ';
@@ -41,7 +41,7 @@ mongoose
 
     try {
       await redisClient.set('ping', 'pong');
-      const pong = await redisClient.get('ping');
+      await redisClient.get('ping');
     } catch (err) {}
 
     await expireUnreviewedLeaves();

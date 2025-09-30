@@ -1,7 +1,7 @@
-import nodemailer, { Transporter } from "nodemailer";
-import ejs from "ejs";
-import path from "path";
-require("dotenv").config();
+import nodemailer, { Transporter } from 'nodemailer';
+import ejs from 'ejs';
+import path from 'path';
+require('dotenv').config();
 
 interface EmailOptions {
   email: string;
@@ -10,12 +10,14 @@ interface EmailOptions {
   data: { [key: string]: any };
 }
 
-export const sendMailToUser = async (options: EmailOptions): Promise<{ accepted: string[], rejected: string[] }> => {
+export const sendMailToUser = async (
+  options: EmailOptions,
+): Promise<{ accepted: string[]; rejected: string[] }> => {
   const transporter: Transporter = nodemailer.createTransport({
     host: process.env.SMPT_HOST,
-    port: parseInt(process.env.SMPT_PORT || "587"),
+    port: parseInt(process.env.SMPT_PORT || '587'),
     secure: false,
-    service: process.env.SMPT_SERVICE,
+    // service: process.env.SMPT_SERVICE,
     auth: {
       user: process.env.SMPT_MAIL,
       pass: process.env.SMPT_PASSWORD,
@@ -23,20 +25,20 @@ export const sendMailToUser = async (options: EmailOptions): Promise<{ accepted:
     tls: {
       rejectUnauthorized: false,
     },
-     logger: true,
-     debug: true
+    logger: true,
+    debug: true,
   });
 
   const { data, email, subject, template } = options;
-  
-  const templatePath = path.join(__dirname, "../mail", template);
+
+  const templatePath = path.join(__dirname, '../mail', template);
   const html = await ejs.renderFile(templatePath, data);
 
-  const fromEmail = process.env.SMPT_MAIL; 
-  const displayName = data?.companyName; 
+  const fromEmail = process.env.SMPT_MAIL;
+  const displayName = data?.companyName;
 
   const mailOptions = {
-    from: `"${displayName}" <${fromEmail}>`,  
+    from: `"${displayName}" <${fromEmail}>`,
     to: email,
     subject,
     html,
@@ -49,14 +51,11 @@ export const sendMailToUser = async (options: EmailOptions): Promise<{ accepted:
       rejected: info.rejected || [],
     };
   } catch (error) {
-  return {
-    accepted: [],
-    rejected: [email],
-  };
-}
-
+    return {
+      accepted: [],
+      rejected: [email],
+    };
+  }
 };
 
 export default sendMailToUser;
-
-

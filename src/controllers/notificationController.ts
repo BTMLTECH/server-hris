@@ -5,13 +5,11 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 
-
 interface GetNotificationsQuery {
   page?: string;
   limit?: string;
-  read?: "true" | "false";
+  read?: 'true' | 'false';
 }
-
 
 export interface NotificationResponse {
   success: boolean;
@@ -24,13 +22,9 @@ export interface NotificationResponse {
 }
 
 export const getNotifications = asyncHandler(
-  async (
-    req: TypedRequest<{}, GetNotificationsQuery, {}>,
-    res: any,
-    next: NextFunction
-  ) => {
-    const page = parseInt(req.query.page ?? "1");
-    const limit = parseInt(req.query.limit ?? "20");
+  async (req: TypedRequest<{}, GetNotificationsQuery, {}>, res: any, _next: NextFunction) => {
+    const page = parseInt(req.query.page ?? '1');
+    const limit = parseInt(req.query.limit ?? '20');
     const skip = (page - 1) * limit;
 
     const companyId = req.company?._id;
@@ -49,19 +43,19 @@ export const getNotifications = asyncHandler(
 
     const filter: any = { company: companyId };
 
-    if (req.user?.role !== "hr" && req.user?.role !== "admin") {
+    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
       filter.user = req.user?._id;
     }
 
-    if (req.query.read === "true") {
+    if (req.query.read === 'true') {
       filter.read = true;
-    } else if (req.query.read === "false") {
+    } else if (req.query.read === 'false') {
       filter.read = false;
     }
 
     const [notifications, total, unreadCount] = await Promise.all([
       Notification.find(filter)
-        .populate("user", "firstName lastName email role")
+        .populate('user', 'firstName lastName email role')
         .sort({ read: 1, createdAt: -1 }) // unread first, newest first
         .skip(skip)
         .limit(limit),
@@ -80,17 +74,12 @@ export const getNotifications = asyncHandler(
     };
 
     res.status(200).json(response);
-  }
+  },
 );
-
 
 // 🔹 Mark a single notification as read
 export const markAsRead = asyncHandler(
-  async (
-    req: TypedRequest<{ id?: string }, {}, {}>,
-    res: any,
-    next: NextFunction
-  ) => {
+  async (req: TypedRequest<{ id?: string }, {}, {}>, res: any, next: NextFunction) => {
     const companyId = req.company?._id;
     const notif = await Notification.findOne({
       _id: req.params.id,
@@ -99,14 +88,14 @@ export const markAsRead = asyncHandler(
     });
 
     if (!notif) {
-      return next(new ErrorResponse("Notification not found", 404));
+      return next(new ErrorResponse('Notification not found', 404));
     }
 
     notif.read = true;
     await notif.save();
 
     res.status(200).json({ success: true, data: notif });
-  }
+  },
 );
 
 // 🔹 Mark all notifications as read
@@ -114,46 +103,44 @@ export const markAllAsRead = asyncHandler(
   async (
     req: TypedRequest<{}, {}, {}>,
     res: TypedResponse<{ message: string }>,
-    next: NextFunction
+    _next: NextFunction,
   ) => {
     const companyId = req.company?._id;
 
     const filter: any = { read: false, company: companyId };
 
     // HR/Admin can mark all, others only their own
-    if (req.user?.role !== "hr" && req.user?.role !== "admin") {
+    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
       filter.user = req.user?._id;
     }
 
     await Notification.updateMany(filter, { read: true });
 
-    res.status(200).json({ success: true, message: "All notifications marked as read" });
-  }
+    res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  },
 );
-
-
 
 // 🔹 Delete a notification
 export const deleteNotification = asyncHandler(
   async (
     req: TypedRequest<{ id?: string }, {}, {}>,
     res: TypedResponse<{ message: string }>,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     const companyId = req.company?._id;
 
     const filter: any = { _id: req.params.id, company: companyId };
 
-    if (req.user?.role !== "hr" && req.user?.role !== "admin") {
+    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
       filter.user = req.user?._id;
     }
 
     const notif = await Notification.findOneAndDelete(filter);
 
     if (!notif) {
-      return next(new ErrorResponse("Notification not found", 404));
+      return next(new ErrorResponse('Notification not found', 404));
     }
 
-    res.status(200).json({ success: true, message: "Notification deleted" });
-  }
+    res.status(200).json({ success: true, message: 'Notification deleted' });
+  },
 );

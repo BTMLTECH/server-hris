@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import ErrorResponse from '../utils/ErrorResponse';
 
-export const ErrorMiddleware = (err: any, req: Request, res: Response, next: NextFunction) => {
+export const ErrorMiddleware = (err: any, _req: Request, res: Response, _next: NextFunction) => {
   // const isProd = process.env.NODE_ENV === 'production';
   err.statusCode = err.statusCode || 500;
   err.message = err.message || 'Internal server error';
@@ -27,10 +27,6 @@ export const ErrorMiddleware = (err: any, req: Request, res: Response, next: Nex
     const message = `Json web token is expired, try again`;
     err = new ErrorResponse(message, 404);
   }
-
-  // if (!isProd) {
-  //   console.error(err);
-  // }
 
   res.status(err.statusCode).json({
     success: false,

@@ -7,7 +7,7 @@ import { AuthData } from '../types/auth';
 
 export const tenantAuth = async (
   req: TypedRequest,
-  res: TypedResponse<AuthData>,
+  _: TypedResponse<AuthData>,
   next: NextFunction,
 ) => {
   try {

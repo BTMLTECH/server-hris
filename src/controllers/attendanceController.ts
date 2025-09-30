@@ -3,26 +3,13 @@ import { NextFunction, Response } from 'express';
 import Attendance, { IAttendance } from '../models/Attendance';
 import User, { IUser } from '../models/user.model';
 import { TypedRequest } from '../types/typedRequest';
-import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
 import { sendNotification } from '../utils/sendNotification';
-import { formatHours, getCurrentShift } from '../utils/shiftUtils';
-import { generateRandomPassword } from '../utils/passwordValidator';
-import mongoose, { isValidObjectId, Types } from 'mongoose';
-import {
-  BiometryCheckInDto,
-  BiometryCheckInResponse,
-  ManualCheckInDto,
-  AttendanceHistoryResponse,
-  AdminAttendanceReportQuery,
-  EmployeeAttendanceStatsResponse,
-  CompanyAttendanceSummaryQuery,
-  CompanyAttendanceSummaryResponse,
-  AttendanceFilterQuery,
-  AttendanceHistoryQuery,
-} from '../types/attendanceType';
+import { getCurrentShift } from '../utils/shiftUtils';
+
+import { isValidObjectId, Types } from 'mongoose';
+import { AttendanceHistoryQuery } from '../types/attendanceType';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { ICompany } from '../models/Company';
 
 // 🔐 OFFICE BIOMETRY CHECK-IN
 export const biometryCheckIn = asyncHandler(
@@ -57,7 +44,7 @@ export const biometryCheckIn = asyncHandler(
 
       const attendance: IAttendance = await Attendance.create({
         user: user._id as Types.ObjectId,
-        biometryId, // ⚡ You had this in your original compiled code, so I kept it
+        biometryId,
         shift,
         checkIn: now,
         status,
@@ -96,7 +83,6 @@ export const biometryCheckIn = asyncHandler(
   },
 );
 
-// 🔐 REMOTE MANUAL CHECK-IN (AUTH REQUIRED)
 export const manualCheckIn = asyncHandler(
   async (
     req: TypedRequest<{}, {}, { shift?: 'day' | 'night' }>,

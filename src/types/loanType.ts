@@ -1,14 +1,13 @@
-import { ILeaveRequest } from "../models/LeaveRequest"
-import { ILoanRequest, LoanReviewLevel, LoanStatus } from "../models/LoanRequest";
-import { IUser } from "../models/user.model";
+import { ILoanRequest, LoanReviewLevel, LoanStatus } from '../models/LoanRequest';
+import { IUser } from '../models/user.model';
 
 export interface CreateLoanDTO {
- type: string, 
- amount: number,
- repaymentPeriod: number,
- reason: string,
- teamLead: string,
- note?: string
+  type: string;
+  amount: number;
+  repaymentPeriod: number;
+  reason: string;
+  teamLead: string;
+  note?: string;
 }
 
 export interface CreateLoanResponse {
@@ -27,7 +26,6 @@ export interface GetLoanActivityFeedDTO {
   status?: string;
   from?: string;
   to?: string;
-
 }
 
 export interface LoanActivityFeedItem {
@@ -42,7 +40,6 @@ export interface LoanActivityFeedItem {
   lastReviewAction?: LoanStatus | null;
 }
 
-
 export interface TeamLeaveActivityItem {
   type: string;
   startDate: Date;
@@ -51,8 +48,6 @@ export interface TeamLeaveActivityItem {
   status: string;
   appliedDate: Date;
 }
-
-
 
 export interface ILoanApprovalQueueItem {
   id: string;

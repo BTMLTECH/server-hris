@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction } from 'express';
 import User, { IUser } from '../models/user.model';
 import { redisClient } from './redisClient';
 import { AuthData } from '../types/auth';

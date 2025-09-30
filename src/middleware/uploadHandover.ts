@@ -1,6 +1,3 @@
-
-
-
 import multer, { FileFilterCallback } from 'multer';
 import { Request } from 'express';
 
@@ -10,17 +7,17 @@ const storage = multer.memoryStorage();
 const uploadHandover = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+  fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     // Accept multiple mime types (e.g., PDFs, images)
-  const allowedMimes = [
-  'application/pdf',             // PDF
-  'image/jpeg',                  // JPEG
-  'image/png',                   // PNG
-  'image/jpg',                   // JPG
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-  'application/vnd.ms-excel',    // .xls
-  'text/csv'                     // .csv
-];
+    const allowedMimes = [
+      'application/pdf', // PDF
+      'image/jpeg', // JPEG
+      'image/png', // PNG
+      'image/jpg', // JPG
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv', // .csv
+    ];
 
     // Check if the uploaded file's mimetype is allowed
     if (!allowedMimes.includes(file.mimetype)) {

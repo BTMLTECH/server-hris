@@ -1,7 +1,4 @@
-import AppraisalRequest, {
-  IAppraisalObjective,
-  IAppraisalRequest,
-} from '../models/AppraisalRequest';
+import AppraisalRequest, { IAppraisalRequest } from '../models/AppraisalRequest';
 import User, { IUser } from '../models/user.model';
 
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -11,13 +8,7 @@ import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 import { logAudit } from '../utils/logAudit';
 import { sendNotification } from '../utils/sendNotification';
-import {
-  CreateAppraisalDTO,
-  CreateAppraisalResponse,
-  GetAppraisalActivityQuery,
-  GetAppraisalActivityResponse,
-  UpdateAppraisalDto,
-} from '../types/appraisalTypes';
+import { GetAppraisalActivityQuery, UpdateAppraisalDto } from '../types/appraisalTypes';
 import { Types } from 'mongoose';
 import { redisClient } from '../utils/redisClient';
 import { emitToUser } from '../utils/socketEmitter';

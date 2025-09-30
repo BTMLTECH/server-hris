@@ -1,43 +1,37 @@
 // controllers/leaveBalance.controller.ts
-import { NextFunction } from "express";
-import { asyncHandler } from "../middleware/asyncHandler";
-import LeaveBalance, { ILeaveBalance } from "../models/LeaveBalance";
-import { TypedRequest } from "../types/typedRequest";
-import { TypedResponse } from "../types/typedResponse";
-import ErrorResponse from "../utils/ErrorResponse";
+import { NextFunction } from 'express';
+import { asyncHandler } from '../middleware/asyncHandler';
+import LeaveBalance from '../models/LeaveBalance';
+import { TypedRequest } from '../types/typedRequest';
+import { TypedResponse } from '../types/typedResponse';
+import ErrorResponse from '../utils/ErrorResponse';
 import {
   CreateLeaveBalanceBody,
   SingleLeaveBalanceResponse,
-  PaginatedLeaveBalanceResponse,
   UpdateLeaveBalanceBody,
-  DeleteLeaveBalanceResponse,
-} from "../types/leaveType";
-import { logAudit } from "../utils/logAudit";
-import { LeaveEntitlements } from "../models/LeaveRequest";
-
-
+} from '../types/leaveType';
+import { logAudit } from '../utils/logAudit';
+import { LeaveEntitlements } from '../models/LeaveRequest';
 
 export const createLeaveBalance = asyncHandler(
   async (
     req: TypedRequest<{}, {}, CreateLeaveBalanceBody>,
     res: TypedResponse<SingleLeaveBalanceResponse>,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     const companyId = req.company?._id;
     const userId = req.user?._id;
-    if (!companyId) return next(new ErrorResponse("Invalid company context", 400));
+    if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
 
     const { user, balances, year } = req.body;
-    if (!user) return next(new ErrorResponse("User is required", 400));
+    if (!user) return next(new ErrorResponse('User is required', 400));
 
     const y = year ?? new Date().getFullYear();
 
     // ✅ Prevent duplicates
     const existing = await LeaveBalance.findOne({ user, company: companyId, year: y });
     if (existing) {
-      return next(
-        new ErrorResponse("Leave balance already exists for this user and year", 400)
-      );
+      return next(new ErrorResponse('Leave balance already exists for this user and year', 400));
     }
 
     // ✅ Validate balances (if provided), otherwise use entitlements
@@ -55,9 +49,7 @@ export const createLeaveBalance = asyncHandler(
         return next(new ErrorResponse(`${type} balance cannot be negative`, 400));
       }
       if (val > max) {
-        return next(
-          new ErrorResponse(`${type} balance cannot exceed ${max}`, 400)
-        );
+        return next(new ErrorResponse(`${type} balance cannot exceed ${max}`, 400));
       }
     }
 
@@ -72,46 +64,45 @@ export const createLeaveBalance = asyncHandler(
     // 📝 Audit log
     await logAudit({
       userId,
-      action: "CREATE_LEAVE_BALANCE",
-      status: "SUCCESS",
+      action: 'CREATE_LEAVE_BALANCE',
+      status: 'SUCCESS',
       ip: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       details: { leaveBalanceId: balance._id, user, year: y, balances: validatedBalances },
     });
 
     res.status(201).json({
       success: true,
-      message: "Leave balance created",
+      message: 'Leave balance created',
     });
-  }
+  },
 );
-
 
 export const updateLeaveBalance = asyncHandler(
   async (
     req: TypedRequest<{ id?: string }, {}, UpdateLeaveBalanceBody>,
     res: TypedResponse<SingleLeaveBalanceResponse>,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     const companyId = req.company?._id;
     const userId = req.user?._id;
 
     if (!companyId) {
-      return next(new ErrorResponse("Invalid company context", 400));
+      return next(new ErrorResponse('Invalid company context', 400));
     }
 
     const { id } = req.params;
     const { leaveType, balance, year } = req.body;
 
-    if (!id) return next(new ErrorResponse("Leave balance ID is required", 400));
-    if (!leaveType || typeof balance !== "number") {
-      return next(new ErrorResponse("Leave type and balance delta are required", 400));
+    if (!id) return next(new ErrorResponse('Leave balance ID is required', 400));
+    if (!leaveType || typeof balance !== 'number') {
+      return next(new ErrorResponse('Leave type and balance delta are required', 400));
     }
 
     // Find document first
     const leaveBalance = await LeaveBalance.findOne({ _id: id, company: companyId });
     if (!leaveBalance) {
-      return next(new ErrorResponse("Leave balance not found", 404));
+      return next(new ErrorResponse('Leave balance not found', 404));
     }
 
     // Current value
@@ -128,14 +119,12 @@ export const updateLeaveBalance = asyncHandler(
     // 🚫 Cannot exceed entitlement
     const maxAllowed = LeaveEntitlements[leaveType];
     if (newValue > maxAllowed) {
-      return next(
-        new ErrorResponse(`${leaveType} balance cannot exceed ${maxAllowed}`, 400)
-      );
+      return next(new ErrorResponse(`${leaveType} balance cannot exceed ${maxAllowed}`, 400));
     }
 
     // Apply update
     leaveBalance.balances[leaveType] = newValue;
-    if (typeof year === "number") {
+    if (typeof year === 'number') {
       leaveBalance.year = year;
     }
 
@@ -144,10 +133,10 @@ export const updateLeaveBalance = asyncHandler(
     // 📝 Audit log
     await logAudit({
       userId,
-      action: "UPDATE_LEAVE_BALANCE",
-      status: "SUCCESS",
+      action: 'UPDATE_LEAVE_BALANCE',
+      status: 'SUCCESS',
       ip: req.ip,
-      userAgent: req.get("user-agent"),
+      userAgent: req.get('user-agent'),
       details: {
         leaveBalanceId: updatedBalance._id,
         leaveType,
@@ -158,9 +147,7 @@ export const updateLeaveBalance = asyncHandler(
 
     res.status(200).json({
       success: true,
-      message: "Leave balance updated",
+      message: 'Leave balance updated',
     });
-  }
+  },
 );
-
-

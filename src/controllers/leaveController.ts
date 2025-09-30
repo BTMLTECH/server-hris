@@ -169,7 +169,6 @@ export const approveLeaveRequest = asyncHandler(
     try {
       const leaveId = req.params.id;
       const reviewer = req.user!;
-      const reviewerRole = reviewer.role;
       const reviewerId = reviewer._id as Types.ObjectId;
       const company = req.company;
 
@@ -311,7 +310,6 @@ export const rejectLeaveRequest = asyncHandler(
     try {
       const leaveId = req.params.id;
       const reviewer = req.user!;
-      const reviewerRole = reviewer.role;
       const reviewerId = reviewer._id as Types.ObjectId;
       const company = req.company;
 
@@ -438,11 +436,10 @@ export const getLeaveApprovalQueue = asyncHandler(
 );
 
 export const getLeaveActivityFeed = asyncHandler(
-  async (req: TypedRequest<{}, TypedRequestQuery, {}>, res: any, next: NextFunction) => {
+  async (req: TypedRequest<{}, TypedRequestQuery, {}>, res: any, _next: NextFunction) => {
     const userId = req.user?._id as Types.ObjectId;
     const userRole = req.user?.role;
     const { status, from, to, page = '1', limit = '20' } = req.query;
-    const company = req.company;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -481,7 +478,6 @@ export const getLeaveActivityFeed = asyncHandler(
         .lean(),
       LeaveRequest.countDocuments({ ...baseFilter, user: userId }),
     ]);
-    console.log('myRequestsRaw', myRequestsRaw);
 
     // 🔹 3) Approvals (reliever/teamlead/hr)
     const roleConditions: any[] = [];
@@ -672,7 +668,7 @@ export const getLeaveActivityFeed = asyncHandler(
 );
 
 export const getLeaveApprovers = asyncHandler(
-  async (req: TypedRequest, res: any, next: NextFunction) => {
+  async (req: TypedRequest, res: any, _next: NextFunction) => {
     const currentUser = await User.findById(req.user?.id);
     if (!currentUser) {
       return res.status(404).json({ success: false, message: 'User not found' });

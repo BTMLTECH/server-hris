@@ -1,10 +1,9 @@
-import { IAttendance } from "../models/Attendance";
+import { IAttendance } from '../models/Attendance';
 
-// ATTENDANCE 
+// ATTENDANCE
 export interface BiometryCheckInResponse {
   data: IAttendance;
 }
-
 
 export interface BiometryCheckInDto {
   biometryId: string;
@@ -14,13 +13,11 @@ export interface ManualCheckInDto {
   shift?: 'day' | 'night';
 }
 
-
-
 // Update response interface to match actual structure
 export interface AttendanceHistoryResponse {
   count: number;
-  page?: number,
-  pageSize?: number,
+  page?: number;
+  pageSize?: number;
   data: IAttendance[];
 }
 
@@ -29,19 +26,7 @@ export interface AttendanceHistoryQuery {
   startDate?: string;
   endDate?: string;
   department?: string;
-  shift?: "day" | "night";
-  company?: string;
-  page?: string;
-  limit?: string;
-}
-
-
-interface AdminAttendanceQuery {
-  startDate?: string;
-  endDate?: string;
-  department?: string;
-   shift?: "day" | "night";
-
+  shift?: 'day' | 'night';
   company?: string;
   page?: string;
   limit?: string;
@@ -50,13 +35,13 @@ interface AdminAttendanceQuery {
 // dtos/AdminAttendanceReportQuery.dto.ts
 
 export interface AdminAttendanceReportQuery {
-  startDate?: string;   // Dates come as strings from req.query
+  startDate?: string; // Dates come as strings from req.query
   endDate?: string;
   department?: string;
   shift?: 'day' | 'night';
-  company?: string;     // Assuming company ID as string
-  page?: number,
-  limit?: number,
+  company?: string; // Assuming company ID as string
+  page?: number;
+  limit?: number;
 }
 
 // dtos/EmployeeAttendanceStats.dto.ts
@@ -96,5 +81,3 @@ export interface AttendanceFilterQuery {
   shift?: 'day' | 'night';
   company?: string;
 }
-
-

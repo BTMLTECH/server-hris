@@ -1,4 +1,3 @@
-import { ICompany } from '../models/Company';
 import Notification, { INotification } from '../models/Notification';
 import { IUser } from '../models/user.model';
 import { sendEmail } from './emailUtil';

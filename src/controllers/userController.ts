@@ -187,13 +187,12 @@ export const getAllUsers = asyncHandler(
     }
 
     const page = parseInt(req.query.page ?? '1', 10);
-    const limit = parseInt(req.query.limit ?? '100', 10);
+    const limit = parseInt(req.query.limit ?? '50', 10);
     const skip = (page - 1) * limit;
 
     const search = req.query.search?.trim();
     const department = req.query.department;
     const status = req.query.status;
-
     // --- Base filters ---
     const filters: any = { company: companyId };
 

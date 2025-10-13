@@ -21,6 +21,7 @@ export const createTraining = asyncHandler(
         date: Date;
         trainer?: string;
         department: string;
+        facilitators: { name: string; email?: string }[];
         noOfTrainees: number;
         participantEmails: string[];
       }
@@ -35,7 +36,11 @@ export const createTraining = asyncHandler(
       }
 
       // Use current user as trainer if not explicitly provided
-      const trainerName = req.body.trainer || `${req.user?.firstName} ${req.user?.lastName}`;
+      // const trainerName = req.body.trainer || `${req.user?.firstName} ${req.user?.lastName}`;
+      // ✅ Validate facilitators: must at least have one with a name
+      if (!req.body.facilitators || req.body.facilitators.length === 0) {
+        return next(new ErrorResponse('At least one facilitator is required', 400));
+      }
 
       // Find participants
       const participants = await User.find({
@@ -47,8 +52,9 @@ export const createTraining = asyncHandler(
       // Create training with participant snapshot
       const training = await Training.create({
         ...req.body,
-        trainer: trainerName,
+        // trainer: trainerName,
         company: companyId,
+        createdBy: req.user?._id,
         participants: participants.map((u) => ({
           id: u._id,
           firstName: u.firstName,
@@ -155,9 +161,86 @@ export const submitFeedback = asyncHandler(
   },
 );
 
+// export const getAllTrainings = asyncHandler(
+//   async (
+//     req: TypedRequest<{}, { page?: string; limit?: string; department?: string }>,
+//     res: TypedResponse<any>,
+//     next: NextFunction,
+//   ) => {
+//     try {
+//       const userId = req.user?._id?.toString();
+//       const companyId = req.company?._id?.toString();
+//       if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
+
+//       const page = parseInt(req.query.page as string) || 1;
+//       const limit = parseInt(req.query.limit as string) || 30;
+//       const skip = (page - 1) * limit;
+
+//       const query: any = { company: companyId };
+//       if (req.query.department) query.department = req.query.department;
+
+//       let trainings = await Training.find(query)
+//         .sort({ date: -1 })
+//         .skip(skip)
+//         .limit(limit)
+//         .populate('feedbacks.user', 'firstName lastName email department')
+//         .lean();
+
+//       // ---------- ROLE BASED FILTERING ----------
+//       if (req.user?.role === 'employee' && userId) {
+//         // ✅ Employee → only trainings where they are a participant
+//         trainings = trainings
+//           .filter((t) => t.participants.some((p) => p.id?.toString() === userId))
+//           .map((t) => ({
+//             ...t,
+//             participants: t.participants.filter((p) => p.id?.toString() === userId),
+//             feedbacks: t.feedbacks.filter((f) => f.user && f.user._id?.toString() === userId),
+//           }));
+//       }
+
+//       if (req.user?.role === 'teamlead' && req.user?.department) {
+//         // ✅ Teamlead → only trainings that include at least 1 participant in their department
+//         trainings = trainings
+//           .filter((t) => t.participants.some((p) => p.department === req.user?.department))
+//           .map((t) => ({
+//             ...t,
+//             participants: t.participants.filter((p) => p.department === req.user?.department),
+//             feedbacks: t.feedbacks.filter((f) => f.department === req.user?.department),
+//           }));
+//       }
+
+//       if (req.user?.role === 'hr') {
+//         trainings = trainings
+//           .filter((t) => t.status === 'submitted')
+//           .map((t) => ({
+//             ...t,
+//             feedbacks: t.feedbacks.filter((f) => f.status === 'submitted'),
+//           }));
+//       }
+
+//       // ---------- PAGINATION ----------
+//       const total = await Training.countDocuments(query);
+//       const pages = Math.ceil(total / limit);
+
+//       res.status(200).json({
+//         success: true,
+//         data: {
+//           data: trainings,
+//           pagination: { total, page, limit, pages },
+//           count: trainings.length,
+//         },
+//       });
+//     } catch (err: any) {
+//       next(new ErrorResponse(err.message, 500));
+//     }
+//   },
+// );
 export const getAllTrainings = asyncHandler(
   async (
-    req: TypedRequest<{}, { page?: string; limit?: string; department?: string }>,
+    req: TypedRequest<
+      {},
+      { page?: string; limit?: string; department?: string; facilitator?: string }
+    >,
     res: TypedResponse<any>,
     next: NextFunction,
   ) => {
@@ -173,6 +256,15 @@ export const getAllTrainings = asyncHandler(
       const query: any = { company: companyId };
       if (req.query.department) query.department = req.query.department;
 
+      // ✅ Optional: Filter by facilitator name or email
+      if (req.query.facilitator) {
+        const facilitatorRegex = new RegExp(req.query.facilitator, 'i');
+        query.$or = [
+          { 'facilitators.name': facilitatorRegex },
+          { 'facilitators.email': facilitatorRegex },
+        ];
+      }
+
       let trainings = await Training.find(query)
         .sort({ date: -1 })
         .skip(skip)
@@ -180,7 +272,16 @@ export const getAllTrainings = asyncHandler(
         .populate('feedbacks.user', 'firstName lastName email department')
         .lean();
 
-      // ---------- ROLE BASED FILTERING ----------
+      // ---------- USER-BASED FILTERING ----------
+      if (userId) {
+        trainings = trainings.filter(
+          (t) =>
+            t.createdBy?.toString() === userId || // ✅ trainings they created
+            t.participants.some((p) => p.id?.toString() === userId), // ✅ or participated in
+        );
+      }
+
+      // ---------- ROLE-BASED FILTERING ----------
       if (req.user?.role === 'employee' && userId) {
         // ✅ Employee → only trainings where they are a participant
         trainings = trainings
@@ -193,7 +294,7 @@ export const getAllTrainings = asyncHandler(
       }
 
       if (req.user?.role === 'teamlead' && req.user?.department) {
-        // ✅ Teamlead → only trainings that include at least 1 participant in their department
+        // ✅ Teamlead → trainings with at least one participant in their department
         trainings = trainings
           .filter((t) => t.participants.some((p) => p.department === req.user?.department))
           .map((t) => ({

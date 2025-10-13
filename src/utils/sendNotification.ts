@@ -47,13 +47,6 @@ export const sendNotification = async ({
     });
   }
 
-  // 3. Emit real-time event
-  // const io = globalThis.io as any;
-  // if (io && user._id) {
-  //   const roomId = user._id.toString();
-  //   io.to(roomId).emit("notification:new", notification.toObject());
-  // }
-
   emitToUser((user._id as string).toString(), 'notification:new', notification.toObject());
 
   return notification;

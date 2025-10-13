@@ -189,6 +189,7 @@ export const getAllUsers = asyncHandler(
     const page = parseInt(req.query.page ?? '1', 10);
     const limit = parseInt(req.query.limit ?? '50', 10);
     const skip = (page - 1) * limit;
+    console.log('req', req.query);
 
     const search = req.query.search?.trim();
     const department = req.query.department;
@@ -197,10 +198,14 @@ export const getAllUsers = asyncHandler(
     const filters: any = { company: companyId };
 
     // Default: only active users unless status explicitly provided
-    if (status) {
-      filters.status = status;
-    } else {
-      filters.status = 'active'; // 🔹 default
+    // if (status) {
+    //   filters.status = status;
+    // } else {
+    //   filters.status = 'active'
+    // }
+
+    if (status && status !== 'all') {
+      filters.status = status.toLowerCase(); // normalize
     }
 
     if (search) {

@@ -162,7 +162,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['employee', 'md', 'teamlead', 'admin', 'hr', 'reliever'],
+      enum: ['employee', 'md', 'teamlead', 'admin', 'hr', 'reliever', 'qa'],
       default: 'employee',
     },
     company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },

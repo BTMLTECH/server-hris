@@ -23,10 +23,20 @@ export const getAllPayrolls = asyncHandler(
     if (!user || !company)
       return next(new ErrorResponse('Unauthorized or no company context', 401));
 
+    console.log('req', req.query);
+
     const { page = '1', limit = '20', sort = 'desc', employee, month, year, search } = req.query;
 
     const pageNum = Math.max(Number(page), 1);
-    const limitNum = Math.min(Math.max(Number(limit), 1), 20);
+
+    let maxLimit = 50;
+
+    if (req.user?.role === 'admin') maxLimit = 100;
+    else if (req.user?.role === 'hr') maxLimit = 100;
+    else if (req.user?.role === 'md') maxLimit = 75;
+    else maxLimit = 50;
+
+    const limitNum = Math.min(Math.max(Number(limit) || 20, 1), maxLimit);
     const skip = (pageNum - 1) * limitNum;
 
     const matchStage: any = { company: company._id };

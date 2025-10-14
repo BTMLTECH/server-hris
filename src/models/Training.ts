@@ -3,7 +3,7 @@ import { IUser } from './user.model';
 
 export interface IFacilitator {
   name: string;
-  email?: string; // ✅ optional
+  email?: string;
 }
 
 const FacilitatorSchema = new Schema<IFacilitator>(

@@ -235,6 +235,7 @@ export const submitFeedback = asyncHandler(
 //     }
 //   },
 // );
+
 export const getAllTrainings = asyncHandler(
   async (
     req: TypedRequest<
@@ -245,18 +246,23 @@ export const getAllTrainings = asyncHandler(
     next: NextFunction,
   ) => {
     try {
-      const userId = req.user?._id?.toString();
+      const userId = req.user?._id?.toString() || '';
+      const userRole = req.user?.role || '';
       const companyId = req.company?._id?.toString();
-      if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
+
+      if (!companyId) {
+        return next(new ErrorResponse('Invalid company context', 400));
+      }
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 30;
       const skip = (page - 1) * limit;
 
+      // ✅ Base query
       const query: any = { company: companyId };
       if (req.query.department) query.department = req.query.department;
 
-      // ✅ Optional: Filter by facilitator name or email
+      // ✅ Optional: filter by facilitator
       if (req.query.facilitator) {
         const facilitatorRegex = new RegExp(req.query.facilitator, 'i');
         query.$or = [
@@ -265,64 +271,42 @@ export const getAllTrainings = asyncHandler(
         ];
       }
 
+      // ---------- FETCH ----------
       let trainings = await Training.find(query)
-        .sort({ date: -1 })
-        .skip(skip)
-        .limit(limit)
         .populate('feedbacks.user', 'firstName lastName email department')
         .lean();
 
-      // ---------- USER-BASED FILTERING ----------
-      if (userId) {
+      // ---------- FILTER BY ROLE ----------
+      if (!['hr', 'admin'].includes(userRole)) {
+        // Non-HR/Admin users — only trainings they created or participated in
         trainings = trainings.filter(
           (t) =>
-            t.createdBy?.toString() === userId || // ✅ trainings they created
-            t.participants.some((p) => p.id?.toString() === userId), // ✅ or participated in
+            t.createdBy?.toString() === userId ||
+            t.participants.some((p) => p.id?.toString() === userId),
         );
       }
 
-      // ---------- ROLE-BASED FILTERING ----------
-      if (req.user?.role === 'employee' && userId) {
-        // ✅ Employee → only trainings where they are a participant
-        trainings = trainings
-          .filter((t) => t.participants.some((p) => p.id?.toString() === userId))
-          .map((t) => ({
-            ...t,
-            participants: t.participants.filter((p) => p.id?.toString() === userId),
-            feedbacks: t.feedbacks.filter((f) => f.user && f.user._id?.toString() === userId),
-          }));
-      }
-
-      if (req.user?.role === 'teamlead' && req.user?.department) {
-        // ✅ Teamlead → trainings with at least one participant in their department
-        trainings = trainings
-          .filter((t) => t.participants.some((p) => p.department === req.user?.department))
-          .map((t) => ({
-            ...t,
-            participants: t.participants.filter((p) => p.department === req.user?.department),
-            feedbacks: t.feedbacks.filter((f) => f.department === req.user?.department),
-          }));
-      }
-
-      if (req.user?.role === 'hr') {
-        trainings = trainings
-          .filter((t) => t.status === 'submitted')
-          .map((t) => ({
-            ...t,
-            feedbacks: t.feedbacks.filter((f) => f.status === 'submitted'),
-          }));
-      }
+      // ---------- SORT ----------
+      trainings.sort((a, b) => {
+        // Pending first
+        if (a.status === 'pending' && b.status === 'submitted') return -1;
+        if (a.status === 'submitted' && b.status === 'pending') return 1;
+        // Then latest by date
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
 
       // ---------- PAGINATION ----------
-      const total = await Training.countDocuments(query);
+      const total = trainings.length;
       const pages = Math.ceil(total / limit);
+      const paginated = trainings.slice(skip, skip + limit);
 
+      // ---------- RESPONSE ----------
       res.status(200).json({
         success: true,
         data: {
-          data: trainings,
+          data: paginated,
           pagination: { total, page, limit, pages },
-          count: trainings.length,
+          count: paginated.length,
         },
       });
     } catch (err: any) {
@@ -330,3 +314,99 @@ export const getAllTrainings = asyncHandler(
     }
   },
 );
+
+// export const getAllTrainings = asyncHandler(
+//   async (
+//     req: TypedRequest<
+//       {},
+//       { page?: string; limit?: string; department?: string; facilitator?: string }
+//     >,
+//     res: TypedResponse<any>,
+//     next: NextFunction,
+//   ) => {
+//     try {
+//       const userId = req.user?._id?.toString();
+//       const companyId = req.company?._id?.toString();
+//       if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
+
+//       const page = parseInt(req.query.page as string) || 1;
+//       const limit = parseInt(req.query.limit as string) || 30;
+//       const skip = (page - 1) * limit;
+
+//       const query: any = { company: companyId };
+//       if (req.query.department) query.department = req.query.department;
+
+//       // ✅ Optional: Filter by facilitator name or email
+//       if (req.query.facilitator) {
+//         const facilitatorRegex = new RegExp(req.query.facilitator, 'i');
+//         query.$or = [
+//           { 'facilitators.name': facilitatorRegex },
+//           { 'facilitators.email': facilitatorRegex },
+//         ];
+//       }
+
+//       let trainings = await Training.find(query)
+//         .sort({ date: -1 })
+//         .skip(skip)
+//         .limit(limit)
+//         .populate('feedbacks.user', 'firstName lastName email department')
+//         .lean();
+
+//       // ---------- USER-BASED FILTERING ----------
+//       if (userId) {
+//         trainings = trainings.filter(
+//           (t) =>
+//             t.createdBy?.toString() === userId || // ✅ trainings they created
+//             t.participants.some((p) => p.id?.toString() === userId), // ✅ or participated in
+//         );
+//       }
+
+//       // ---------- ROLE-BASED FILTERING ----------
+//       if (req.user?.role === 'employee' && userId) {
+//         // ✅ Employee → only trainings where they are a participant
+//         trainings = trainings
+//           .filter((t) => t.participants.some((p) => p.id?.toString() === userId))
+//           .map((t) => ({
+//             ...t,
+//             participants: t.participants.filter((p) => p.id?.toString() === userId),
+//             feedbacks: t.feedbacks.filter((f) => f.user && f.user._id?.toString() === userId),
+//           }));
+//       }
+
+//       if (req.user?.role === 'teamlead' && req.user?.department) {
+//         // ✅ Teamlead → trainings with at least one participant in their department
+//         trainings = trainings
+//           .filter((t) => t.participants.some((p) => p.department === req.user?.department))
+//           .map((t) => ({
+//             ...t,
+//             participants: t.participants.filter((p) => p.department === req.user?.department),
+//             feedbacks: t.feedbacks.filter((f) => f.department === req.user?.department),
+//           }));
+//       }
+
+//       if (req.user?.role === 'hr') {
+//         trainings = trainings
+//           .filter((t) => t.status === 'submitted')
+//           .map((t) => ({
+//             ...t,
+//             feedbacks: t.feedbacks.filter((f) => f.status === 'submitted'),
+//           }));
+//       }
+
+//       // ---------- PAGINATION ----------
+//       const total = await Training.countDocuments(query);
+//       const pages = Math.ceil(total / limit);
+
+//       res.status(200).json({
+//         success: true,
+//         data: {
+//           data: trainings,
+//           pagination: { total, page, limit, pages },
+//           count: trainings.length,
+//         },
+//       });
+//     } catch (err: any) {
+//       next(new ErrorResponse(err.message, 500));
+//     }
+//   },
+// );

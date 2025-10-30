@@ -6,12 +6,12 @@ import {
   rejectAppraisalRequest,
   getAppraisalApprovalQueue,
   getAppraisalActivity,
-  getEmployeesByTeamLeadDepartment,
+  // getEmployeesByTeamLeadDepartment,
 } from "../controllers/AppraisalController";
 import {
   protect,
   allowEveryone,
-  allowTeamLead,
+  // allowTeamLead,
   allowTeamLeadHRManager,
 } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
@@ -31,6 +31,6 @@ router.get("/appraisal-queue", protect, tenantAuth, allowEveryone, getAppraisalA
 router.get("/activity", protect, tenantAuth, allowEveryone, getAppraisalActivity);
 
 // Employees under team lead
-router.get("/get-employee", protect, tenantAuth, allowTeamLead, getEmployeesByTeamLeadDepartment);
+// router.get("/get-employee", protect, tenantAuth, allowTeamLead, getEmployeesByTeamLeadDepartment);
 
 export default router;

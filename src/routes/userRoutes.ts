@@ -10,6 +10,7 @@ import {
   deleteEmployee,
   terminateEmployee,
   activateEmployee,
+  getEmployeesByTeamLeadDepartment,
 } from '../controllers/userController';
 import { generateAnalyticsAndDashboard } from '../controllers/generateAnalytics';
 
@@ -37,5 +38,8 @@ router.delete('/:id', protect, tenantAuth, allowAdminAndHR, deleteEmployee);
 router.delete('/:id/terminate', protect, tenantAuth, allowAdminAndHR, terminateEmployee);
 
 router.delete('/:id/activate', protect, tenantAuth, allowAdminAndHR, activateEmployee);
+
+router.get("/get-teamlead", protect, tenantAuth, allowAllRoles, getEmployeesByTeamLeadDepartment);
+
 
 export default router;

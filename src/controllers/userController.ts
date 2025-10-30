@@ -395,3 +395,104 @@ export const deleteEmployee = async (
     next(new ErrorResponse(err.message, 500));
   }
 };
+
+export const getEmployeesByTeamLeadDepartment = asyncHandler(
+  async (req: TypedRequest<{}, {}, {}>, res: any, next: NextFunction) => {
+    try {
+      const userId = req.user?._id;
+      const cacheKey = `employees:${userId}`;
+
+      // 1️⃣ Check cache
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return res.status(200).json({
+          success: true,
+          cached: true,
+          data: JSON.parse(cached),
+        });
+      }
+
+      // 2️⃣ Get current user
+      const user = await User.findById(userId).select(
+        'firstName lastName email department company role status position'
+      );
+
+      if (!user) {
+        return next(new ErrorResponse('User not found', 404));
+      }
+
+      let resultData: any[] = [];
+
+      if (user.role === 'teamlead') {
+        // Only return self
+        resultData = [user];
+      } else if (user.role === 'employee') {
+        // Return the teamlead(s) for that department
+        resultData = await User.find({
+          department: user.department,
+          company: user.company,
+          role: 'teamlead',
+        }).select('firstName lastName email department company role status position');
+      }
+
+      // ✅ Remove any accidental duplicates by _id
+      const uniqueData = resultData.filter(
+        (v, i, a) =>
+          a.findIndex((t) => t._id.toString() === v._id.toString()) === i
+      );
+
+      // Cache the clean array
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(uniqueData));
+
+      res.status(200).json({
+        success: true,
+        cached: false,
+        data: uniqueData,
+      });
+    } catch (error: any) {
+      next(new ErrorResponse(error.message, 500));
+    }
+  }
+);
+// export const getEmployeesByTeamLeadDepartment = asyncHandler(
+//   async (req: TypedRequest<{}, {}, {}>, res: any, next: NextFunction) => {
+//     try {
+//       const teamleadId = req.user?._id;
+//       const cacheKey = `employees:${teamleadId}`;
+
+//       const cachedEmployees = await redisClient.get(cacheKey);
+//       if (cachedEmployees) {
+//         return res.status(200).json({
+//           success: true,
+//           message: 'Employees in your department (cached)',
+//           data: JSON.parse(cachedEmployees),
+//         });
+//       }
+
+//       // Step 2: Find teamlead's department
+//       const teamlead = await User.findById(teamleadId).select('department company role');
+
+//       if (!teamlead || teamlead.role !== 'teamlead') {
+//         return next(new ErrorResponse('TeamLead not found or not authorized', 404));
+//       }
+
+//       // Step 3: Get all employees in the same department as the teamlead
+//       const employees = await User.find({
+//         department: teamlead.department,
+//         role: 'employee',
+//         company: teamlead.company,
+//       }).select('firstName lastName email department status');
+
+//       // Cache the employees' data with a 1-hour expiration (3600 seconds)
+//       await redisClient.setex(cacheKey, 3600, JSON.stringify(employees));
+
+//       res.status(200).json({
+//         success: true,
+//         message: 'Employees in your department',
+//         data: { data: employees },
+//       });
+//     } catch (error: any) {
+//       next(new ErrorResponse(error.message, 500));
+//     }
+//   },
+// );

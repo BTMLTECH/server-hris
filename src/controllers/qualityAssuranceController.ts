@@ -4,8 +4,50 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { QualityAssurance } from '../models/QualityAssurance';
 import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
+import Company from '../models/Company';
+import mongoose from 'mongoose';
 
 // CREATE QUALITY ASSURANCE
+// export const createQualityAssurance = asyncHandler(
+//   async (
+//     req: TypedRequest<
+//       {},
+//       {},
+//       {
+//         agentName: string;
+//         week: number;
+//         score: number;
+//         remarks?: string;
+//         evaluatedBy?: string;
+//         company?: string;
+//       }
+//     >,
+//     res: TypedResponse<any>,
+//     next: NextFunction,
+//   ) => {
+//     console.log('Request Body:', req.body.company);
+
+//     if (!company) return next(new ErrorResponse('Invalid company context', 400));
+
+//     const { agentName, week, score, remarks, evaluatedBy, company } = req.body;
+//     if (!agentName || !week || score == null) {
+//       return next(new ErrorResponse('Agent name, week, and score are required', 400));
+//     }
+
+//     const qa = await QualityAssurance.create({
+//       agentName,
+//       week,
+//       score,
+//       remarks,
+//       evaluatedBy,
+//       company,
+//       createdAt: new Date(),
+//     });
+
+//     res.status(201).json({ success: true, data: qa });
+//   },
+// );
+
 export const createQualityAssurance = asyncHandler(
   async (
     req: TypedRequest<
@@ -17,32 +59,54 @@ export const createQualityAssurance = asyncHandler(
         score: number;
         remarks?: string;
         evaluatedBy?: string;
+        company?: string;
       }
     >,
     res: TypedResponse<any>,
     next: NextFunction,
   ) => {
-    const companyId = req.company?._id;
-    if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
 
-    const { agentName, week, score, remarks, evaluatedBy } = req.body;
-    if (!agentName || !week || score == null) {
-      return next(new ErrorResponse('Agent name, week, and score are required', 400));
+
+    const { agentName, week, score, remarks, evaluatedBy, company } = req.body;
+
+    // 1. Require companyId
+    if (!company) {
+      return next(new ErrorResponse('Company is required', 400));
     }
 
+    // 2. Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(company)) {
+      return next(new ErrorResponse('Invalid company ID format', 400));
+    }
+
+    // 3. Check if company exists in DB
+    const foundCompany = await Company.findById(req.body?.company);
+    if (!foundCompany) {
+      return next(new ErrorResponse('Company does not exist', 404));
+    }
+
+    // 4. Validate required fields
+    if (!agentName || !week || score == null) {
+      return next(
+        new ErrorResponse('Agent name, week, and score are required', 400)
+      );
+    }
+
+    // 5. Create QA record
     const qa = await QualityAssurance.create({
       agentName,
       week,
       score,
       remarks,
       evaluatedBy,
-      company: companyId,
+      company,
       createdAt: new Date(),
     });
 
     res.status(201).json({ success: true, data: qa });
   },
 );
+
 
 // GET ALL QUALITY ASSURANCE RECORDS
 export const getAllQualityAssurance = asyncHandler(

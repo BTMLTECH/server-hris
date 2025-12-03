@@ -4,6 +4,8 @@ import { OperationReport } from '../models/Operation';
 import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
+import mongoose from 'mongoose';
+import Company from '../models/Company';
 
 export const createOperation = asyncHandler(
   async (
@@ -17,68 +19,62 @@ export const createOperation = asyncHandler(
         PNR: string;
         ticketNumber: string;
         details: string;
+        company: string;
       }
     >,
     res: TypedResponse<any>,
-    next: NextFunction,
+    next: NextFunction
   ) => {
-    try {
-      const companyId = req.company?._id;
-      if (!companyId) {
-        return next(new ErrorResponse('Invalid company context', 400));
-      }
+    const {
+      consultantName,
+      shift,
+      clientName,
+      PNR,
+      ticketNumber,
+      details,
+      company,
+    } = req.body;
 
-      const { consultantName, shift, clientName, PNR, ticketNumber, details } = req.body;
-
-      // ✅ Validate required fields
-      if (!consultantName || !shift || !clientName || !PNR || !ticketNumber || !details) {
-        return next(new ErrorResponse('All fields are required', 400));
-      }
-
-      // Optional: verify that the consultant exists in this company
-      //   const consultant = await User.findOne({
-      //     $or: [
-      //       { firstName: consultantName },
-      //       { lastName: consultantName },
-      //       { email: consultantName },
-      //       { staffId: consultantName },
-      //     ],
-      //     company: companyId,
-      //   }).lean();
-
-      //   if (!consultant) {
-      //     return next(new ErrorResponse(`Consultant '${consultantName}' not found in company`, 404));
-      //   }
-
-      // ✅ Create operation report
-      const operation = await OperationReport.create({
-        consultantName,
-        shift,
-        clientName,
-        PNR,
-        ticketNumber,
-        details,
-        company: companyId,
-        createdAt: new Date(),
-      });
-
-      // (Optional) send notification to consultant if needed
-      // await sendNotification({
-      //   user: consultant,
-      //   type: 'INFO',
-      //   title: `New Operation Report Created`,
-      //   message: `An operation report has been logged for your shift (${shift}).`,
-      // });
-
-      res.status(201).json({
-        success: true,
-        data: operation,
-      });
-    } catch (err: any) {
-      next(new ErrorResponse(err.message || 'Server error', 500));
+    // 1. Require companyId
+    if (!company) {
+      return next(new ErrorResponse('Company is required', 400));
     }
-  },
+
+    // 2. Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(company)) {
+      return next(new ErrorResponse('Invalid company ID format', 400));
+    }
+
+    // 3. Check if company exists in DB
+    const foundCompany = await Company.findById(company);
+    if (!foundCompany) {
+      return next(new ErrorResponse('Company does not exist', 404));
+    }
+
+    // 4. Validate required fields
+    if (!consultantName || !shift || !clientName || !PNR || !ticketNumber || !details) {
+      return next(new ErrorResponse('All fields are required', 400));
+    }
+
+    // 5. Create operation report
+    const operation = await OperationReport.create({
+      consultantName,
+      shift,
+      clientName,
+      PNR,
+      ticketNumber,
+      details,
+      company,
+      createdAt: new Date(),
+    });
+
+    res.status(201).json({
+      success: true,
+      data: operation,
+    });
+  }
 );
+
 
 export const getAllOperations = asyncHandler(
   async (

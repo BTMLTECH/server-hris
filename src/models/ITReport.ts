@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
-export interface IReport extends Document {
+
+export interface IITReport extends Document {
   name: string;
   week: number;
   task: string;
@@ -7,15 +8,16 @@ export interface IReport extends Document {
   createdAt: Date;
 }
 
-const ReportSchema = new Schema<IReport>(
+const ITReportSchema = new Schema<IITReport>(
   {
     name: { type: String, required: true, trim: true },
     week: { type: Number, required: true },
     task: { type: String, required: true, trim: true },
-    company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    company: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     createdAt: { type: Date, default: Date.now },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
-export const Report = mongoose.model<IReport>('Report', ReportSchema);
+// ✅ Use unique model name
+export const ITReport = mongoose.model<IITReport>("ITReport", ITReportSchema);

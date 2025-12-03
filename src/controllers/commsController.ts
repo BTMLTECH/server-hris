@@ -4,6 +4,8 @@ import { Comms } from '../models/Comms';
 import { TypedRequest } from '../types/typedRequest';
 import { TypedResponse } from '../types/typedResponse';
 import ErrorResponse from '../utils/ErrorResponse';
+import mongoose from 'mongoose';
+import Company from '../models/Company';
 
 // CREATE COMMS
 export const createComms = asyncHandler(
@@ -17,32 +19,53 @@ export const createComms = asyncHandler(
         subject: string;
         message: string;
         status?: 'sent' | 'delivered' | 'read';
+        company: string;
       }
     >,
     res: TypedResponse<any>,
-    next: NextFunction,
+    next: NextFunction
   ) => {
-    const companyId = req.company?._id;
-    if (!companyId) return next(new ErrorResponse('Invalid company context', 400));
+    const { sender, receiver, subject, message, status, company } = req.body;
 
-    const { sender, receiver, subject, message, status } = req.body;
+    // 1. Require companyId
+    if (!company) {
+      return next(new ErrorResponse('Company is required', 400));
+    }
+
+    // 2. Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(company)) {
+      return next(new ErrorResponse('Invalid company ID format', 400));
+    }
+
+    // 3. Check if company exists in DB
+    const foundCompany = await Company.findById(company);
+    if (!foundCompany) {
+      return next(new ErrorResponse('Company does not exist', 404));
+    }
+
+    // 4. Validate required fields
     if (!sender || !receiver || !subject || !message) {
       return next(new ErrorResponse('All fields are required', 400));
     }
 
+    // 5. Create communication record
     const comms = await Comms.create({
       sender,
       receiver,
       subject,
       message,
       status: status || 'sent',
-      company: companyId,
+      company,
       dateSent: new Date(),
     });
 
-    res.status(201).json({ success: true, data: comms });
-  },
+    res.status(201).json({
+      success: true,
+      data: comms,
+    });
+  }
 );
+
 
 // GET ALL COMMS
 export const getAllComms = asyncHandler(

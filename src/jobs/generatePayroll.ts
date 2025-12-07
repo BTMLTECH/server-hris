@@ -1,43 +1,43 @@
-// jobs/generateMonthlyPayroll.ts
-import ClassLevel from '../models/ClassLevel';
-import PayrollNew from '../models/PayrollNew';
-import User from '../models/user.model';
-import { excludeRoles } from '../utils/excludeRoles';
-import { calculatePayroll } from '../utils/payrollCalculator';
-import { Types } from 'mongoose';
+// // jobs/generateMonthlyPayroll.ts
+// import ClassLevel from '../models/ClassLevel';
+// import PayrollNew from '../models/PayrollNew';
+// import User from '../models/user.model';
+// import { excludeRoles } from '../utils/excludeRoles';
+// import { calculatePayroll } from '../utils/payrollCalculator';
+// import { Types } from 'mongoose';
 
-function getShiftedMonthYear(date = new Date(), offset = 1) {
-  const d = new Date(date.getFullYear(), date.getMonth() + offset, 1);
-  return { month: d.getMonth() + 1, year: d.getFullYear() };
-}
+// function getShiftedMonthYear(date = new Date(), offset = 1) {
+//   const d = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+//   return { month: d.getMonth() + 1, year: d.getFullYear() };
+// }
 
-async function findUserClassLevel(
-  companyId: Types.ObjectId,
-  level: number | undefined,
-  payGrade: string,
-  year: number,
-) {
-  if (level === undefined) return null;
+// async function findUserClassLevel(
+//   companyId: Types.ObjectId,
+//   level: number | undefined,
+//   payGrade: string,
+//   year: number,
+// ) {
+//   if (level === undefined) return null;
 
-  let cl = await ClassLevel.findOne({
-    company: companyId,
-    level,
-    payGrade,
-    year,
-  }).lean();
+//   let cl = await ClassLevel.findOne({
+//     company: companyId,
+//     level,
+//     payGrade,
+//     year,
+//   }).lean();
 
-  if (cl) return cl;
+//   if (cl) return cl;
 
-  cl = await ClassLevel.findOne({
-    company: companyId,
-    level,
-    payGrade,
-  })
-    .sort({ year: -1, createdAt: -1 })
-    .lean();
+//   cl = await ClassLevel.findOne({
+//     company: companyId,
+//     level,
+//     payGrade,
+//   })
+//     .sort({ year: -1, createdAt: -1 })
+//     .lean();
 
-  return cl;
-}
+//   return cl;
+// }
 
 // export const generateNextMonthPayroll = async () => {
 //   try {

@@ -223,6 +223,73 @@ export const updateAppraisalRequest = asyncHandler(
   },
 );
 
+// export const getAppraisalActivity = asyncHandler(
+//   async (req: TypedRequest<{}, GetAppraisalActivityQuery, {}>, res: any, next: NextFunction) => {
+//     try {
+//       const user = req.user;
+//       if (!user) {
+//         return next(new ErrorResponse('User not authenticated', 401));
+//       }
+
+//       const page = parseInt(req.query.page || '1');
+//       let limit = parseInt(req.query.limit || '10');
+//       if (limit > 50) limit = 50;
+//       const skip = (page - 1) * limit;
+
+//       let query: any = {};
+
+//       // Role-based query filter
+//       if (user.role === 'admin') {
+//         query = {}; // Full access
+//       } else if (user.role === 'hr') {
+//         query = {
+//           reviewLevel: 'hr',
+//           status: { $in: ['submitted', 'needs_revision'] },
+//           reviewTrail: { $elemMatch: { role: 'teamlead', action: 'approved' } },
+//           $nor: [{ reviewTrail: { $elemMatch: { role: 'hr' } } }],
+//         };
+//       } else if (user.role === 'teamlead') {
+//         query = { teamLeadId: user._id };
+//       } else if (user.role === 'employee') {
+//         query = { user: user._id };
+//       }
+
+//       // Status filter from query string
+//       const statusFilter = req.query.status;
+//       if (statusFilter && statusFilter !== 'all') {
+//         query.status = statusFilter;
+//       }
+
+//       const total = await AppraisalRequest.countDocuments(query);
+//       const appraisals = await AppraisalRequest.find(query)
+//         .populate('user', 'firstName lastName email')
+//         .sort({ updatedAt: -1 })
+//         .skip(skip)
+//         .limit(limit);
+
+//       const payload = {
+//         appraisals,
+//         pagination: {
+//           total,
+//           page,
+//           limit,
+//           pages: Math.ceil(total / limit),
+//         },
+//       };
+
+//       emitToUser(user._id as Types.ObjectId, 'appraisal:update', payload);
+
+//       res.status(200).json({
+//         success: true,
+//         message: 'Appraisal activity fetched successfully',
+//         data: payload,
+//       });
+//     } catch (error: any) {
+//       next(new ErrorResponse(error.message, 500));
+//     }
+//   },
+// );
+
 export const getAppraisalActivity = asyncHandler(
   async (req: TypedRequest<{}, GetAppraisalActivityQuery, {}>, res: any, next: NextFunction) => {
     try {
@@ -241,29 +308,41 @@ export const getAppraisalActivity = asyncHandler(
       // Role-based query filter
       if (user.role === 'admin') {
         query = {}; // Full access
+
       } else if (user.role === 'hr') {
         query = {
-          reviewLevel: 'hr',
-          status: { $in: ['submitted', 'needs_revision'] },
-          reviewTrail: { $elemMatch: { role: 'teamlead', action: 'approved' } },
-          $nor: [{ reviewTrail: { $elemMatch: { role: 'hr' } } }],
+          $or: [
+            // 1️⃣ Items awaiting HR approval
+            {
+              reviewLevel: 'hr',
+              status: { $in: ['submitted', 'needs_revision'] },
+              reviewTrail: { $elemMatch: { role: 'teamlead', action: 'approved' } },
+              $nor: [{ reviewTrail: { $elemMatch: { role: 'hr' } } }],
+            },
+
+            // 2️⃣ Already approved by HR
+            { status: 'approved' }
+          ]
         };
+
       } else if (user.role === 'teamlead') {
         query = { teamLeadId: user._id };
+
       } else if (user.role === 'employee') {
         query = { user: user._id };
       }
 
-      // Status filter from query string
+      // Status filter (optional)
       const statusFilter = req.query.status;
       if (statusFilter && statusFilter !== 'all') {
         query.status = statusFilter;
       }
 
       const total = await AppraisalRequest.countDocuments(query);
+
       const appraisals = await AppraisalRequest.find(query)
-        .populate('user', 'firstName lastName email')
-        .sort({ updatedAt: -1 })
+        .populate('user', 'firstName lastName email department')
+        .sort({ updatedAt: -1 }) // pending will still appear at top because updatedAt changes at approval
         .skip(skip)
         .limit(limit);
 
@@ -287,8 +366,9 @@ export const getAppraisalActivity = asyncHandler(
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));
     }
-  },
+  }
 );
+
 
 export const approveAppraisalRequest = asyncHandler(
   async (

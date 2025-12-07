@@ -7,7 +7,6 @@ import cron from 'node-cron';
 import { autoCheckoutForgotten } from './controllers/attendanceController';
 import { Server } from 'socket.io';
 import http from 'http';
-import { generateNextMonthPayroll } from './jobs/generatePayroll';
 import { runBirthdayNotifications, seedMonthlyBirthdays } from './utils/birthdayNotifications ';
 import Company from './models/Company';
 
@@ -21,6 +20,7 @@ mongoose
     const io = new Server(server, {
       cors: {
         origin: [process.env.FRONTEND_URL!],
+        
         credentials: true,
       },
     });
@@ -58,15 +58,15 @@ mongoose
       await autoCheckoutForgotten();
     });
 
-    cron.schedule(
-      '0 0 10 * *',
-      async () => {
-        await generateNextMonthPayroll();
-      },
-      {
-        timezone: 'Africa/Lagos',
-      },
-    );
+    // cron.schedule(
+    //   '0 0 10 * *',
+    //   async () => {
+    //     await generateNextMonthPayroll();
+    //   },
+    //   {
+    //     timezone: 'Africa/Lagos',
+    //   },
+    // );
 
     cron.schedule('0 1 * * *', async () => {
       const company = await Company.findOne({ status: 'active' });

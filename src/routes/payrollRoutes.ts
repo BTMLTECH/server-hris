@@ -10,6 +10,7 @@ import {
   markPayrollsAsDraftBulk,
   markPayrollsAsPaidBulk,
   deletePayroll,
+  generatePayrollForCurrentMonth,
 } from "../controllers/payrollController";
 import { protect, allowAllRoles, allowAdminAndHR } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
@@ -33,5 +34,8 @@ router.post("/bulk-pay", protect, tenantAuth, allowAdminAndHR, markPayrollsAsPai
 
 // Delete payroll
 router.delete("/:id", protect, tenantAuth, allowAdminAndHR, deletePayroll);
+
+// generate payroll for current month
+router.post("/generate-bulk", protect, tenantAuth, allowAdminAndHR, generatePayrollForCurrentMonth);
 
 export default router;

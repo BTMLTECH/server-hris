@@ -12,8 +12,7 @@ export const tenantAuth = async (
 ) => {
   try {
     if (!req.user || !req.user.company) {
-      console.log('No user or company in request', req.user);
-      console.log('No user or company in request', req.user?.company);
+
       return next(new ErrorResponse('No company context found or not authenticated', 404));
     }
 

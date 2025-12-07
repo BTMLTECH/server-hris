@@ -15,6 +15,7 @@ import PayrollNew from '../models/PayrollNew';
 import { excludeRoles } from '../utils/excludeRoles';
 import { BulkPayrollBody, PayrollBulkBody, PayrollParams } from '../types/payrollTypes';
 import { monthNameToNumber } from '../utils/months';
+import { calculatePayroll } from '../utils/payrollCalculator';
 
 export const getAllPayrolls = asyncHandler(
   async (req: TypedRequest<{}, any, {}>, res: TypedResponse<any>, next: NextFunction) => {
@@ -636,4 +637,101 @@ export const processBulkPayroll = asyncHandler(
       data: { count: payrolls.length, pdfUrl, excelUrl },
     });
   },
+);
+
+
+
+export const generatePayrollForCurrentMonth = asyncHandler(
+  async (req: TypedRequest, res: TypedResponse<any>, next: NextFunction) => {
+    const user = req.user;
+    const company = req.company;
+
+    if (!user || !company)
+      return next(new ErrorResponse("Unauthorized or no company context", 401));
+
+    // Current month/year
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+
+    const employees = await User.find({
+      company: company._id,
+      ...excludeRoles(),
+    }).lean();
+
+
+    let created = 0;
+
+    for (const emp of employees) {
+ 
+
+
+
+      const basicSalary = emp.accountInfo?.basicPay;
+      const totalAllowances = emp.accountInfo?.allowances;
+
+      // ❌ If any employee doesn’t have salary data → STOP EVERYTHING
+      if (!basicSalary || !totalAllowances) {
+        return next(
+          new ErrorResponse(
+            `Missing basicPay or allowances for employee: ${emp.firstName} ${emp.lastName}`,
+            400
+          )
+        );
+      }
+
+      // ❌ If payroll already exists for ANY employee → STOP EVERYTHING
+      const exists = await PayrollNew.findOne({
+        user: emp._id,
+        month,
+        year,
+      }).lean();
+
+      if (exists) {
+        return next(
+          new ErrorResponse(
+            `Payroll already generated for ${emp.firstName} ${emp.lastName} for ${month}/${year}`,
+            400
+          )
+        );
+      }
+
+      const payrollResult = calculatePayroll({ basicSalary, totalAllowances });
+
+      await PayrollNew.create({
+        user: emp._id,
+        company: company._id,
+        basicSalary,
+        totalAllowances,
+        grossSalary: payrollResult.grossSalary,
+        pension: payrollResult.pension,
+        CRA: payrollResult.CRA,
+        taxableIncome: payrollResult.taxableIncome,
+        tax: payrollResult.tax,
+        netSalary: payrollResult.netSalary,
+        taxBands: payrollResult.taxBands,
+        month,
+        year,
+        status: "pending",
+      });
+
+      created++;
+    }
+
+
+    await logAudit({
+      userId: user._id,
+      action: "GENERATE_CURRENT_MONTH_PAYROLL",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Payroll generated for ${month}/${year}`,
+      data: { created, totalEmployees: employees.length },
+    });
+  }
 );

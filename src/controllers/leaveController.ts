@@ -399,7 +399,7 @@ export const getLeaveApprovalQueue = asyncHandler(
 
       // Pull all pending leaves
       const leaves: ILeaveRequest[] = await LeaveRequest.find({ status: 'Pending' })
-        .populate('user', 'firstName lastName email')
+        .populate('user', 'staffId firstName lastName email')
         .sort({ createdAt: -1 });
 
       const queue: ILeaveRequest[] = leaves.filter((leave) => {
@@ -474,7 +474,7 @@ export const getLeaveActivityFeed = asyncHandler(
         .select(
           '_id type startDate endDate days status reason createdAt user teamlead reviewTrail relievers allowance url',
         )
-        .populate('user', 'firstName lastName')
+        .populate('user', 'staffId firstName lastName department')
         .lean(),
       LeaveRequest.countDocuments({ ...baseFilter, user: userId }),
     ]);
@@ -539,7 +539,7 @@ export const getLeaveActivityFeed = asyncHandler(
         .select(
           '_id type startDate endDate days status reason createdAt user teamlead reviewTrail relievers allowance url',
         )
-        .populate('user', 'firstName lastName')
+        .populate('user', 'staffId firstName lastName department')
         .lean(),
       LeaveRequest.countDocuments({ ...baseFilter, $or: roleConditions }),
     ]);
@@ -562,7 +562,7 @@ export const getLeaveActivityFeed = asyncHandler(
           .select(
             '_id type startDate endDate days status reason createdAt user teamlead reviewTrail relievers allowance url',
           )
-          .populate('user', 'firstName lastName')
+          .populate('user', 'staffId firstName lastName department')
           .lean(),
         LeaveRequest.countDocuments(approvedFilter),
       ]);
@@ -576,7 +576,9 @@ export const getLeaveActivityFeed = asyncHandler(
         id: leave._id.toString(),
         employeeId: leave.user?._id?.toString() ?? '',
         employeeName: `${leave.user?.firstName ?? ''} ${leave.user?.lastName ?? ''}`.trim(),
+        department: leave.user?.department,
         type: leave.type,
+        staffId: leave.user?.staffId,
         startDate: leave.startDate,
         endDate: leave.endDate,
         days: leave.days,
@@ -793,4 +795,78 @@ export const getLeaveStatusOverview = asyncHandler(
       next(err);
     }
   },
+);
+
+
+export const deleteLeave = asyncHandler(
+  async (req: TypedRequest<{ id?: string }, {}, {}>, res: any, next: NextFunction)  => {
+    const leaveId = req.params.id;
+    const userId = req.user?._id;
+    const companyId = req.company?._id;
+
+
+
+    // 1. Find leave
+    const leave = await LeaveRequest.findById(leaveId);
+    if (!leave) {
+      return next(new ErrorResponse("Leave request not found", 404));
+    }
+
+    if (!leave) return next(new ErrorResponse("Leave request not found", 404));
+
+
+    // 2. Prevent deleting processed leave
+    if (leave.status !== "Pending") {
+      return next(
+        new ErrorResponse(
+          "You cannot delete this leave request because it has already been processed",
+          400
+        )
+      );
+    }
+
+
+
+    // 3. Restore Leave Balance
+    const balance = await LeaveBalance.findOne({
+      user: leave.user,
+      company: companyId,
+      year: new Date().getFullYear(),
+    });
+
+    if (!balance) {
+      return next(new ErrorResponse("Leave balance not found", 400));
+    }
+
+    
+    // TS fix — days is required but TypeScript doesn't know
+    const restoredDays = leave.days!;
+    
+    
+    
+    balance.balances[leave.type] += restoredDays;
+    await balance.save();
+
+    // 4. Delete leave
+    await leave.deleteOne();
+
+    // 5. Audit
+    await logAudit({
+      userId,
+      action: "DELETE_LEAVE_REQUEST",
+      status: "SUCCESS",
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+      details: {
+        leaveId,
+        restoredDays,
+        leaveType: leave.type,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Leave request deleted and leave balance restored",
+    });
+  }
 );

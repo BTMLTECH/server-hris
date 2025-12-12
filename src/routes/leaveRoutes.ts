@@ -7,8 +7,9 @@ import {
   getLeaveActivityFeed,
   getLeaveApprovers,
   getLeaveStatusOverview,
+  deleteLeave,
 } from "../controllers/leaveController";
-import { protect, allowEveryone, allowAllRoles, allowAdminAndHR } from "../middleware/auth.middleware";
+import { protect, allowEveryone, allowAllRoles, allowAdminAndHR, allowEmployeesOnly } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
 import uploadHandover from "../middleware/uploadHandover";
 import { updateLeaveBalance } from "../controllers/leaveBalanceController";
@@ -26,5 +27,6 @@ router.get("/activity-feed", protect, tenantAuth, allowEveryone, getLeaveActivit
 router.get("/teamlead", protect, tenantAuth, allowEveryone, getLeaveApprovers);
 router.get("/status-overview", protect, tenantAuth, allowEveryone, getLeaveStatusOverview);
 router.put("/:id/balance", protect, tenantAuth, allowAdminAndHR, updateLeaveBalance);
+router.delete("/:id/delete", protect, tenantAuth, allowEmployeesOnly, deleteLeave);
 
 export default router;

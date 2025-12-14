@@ -201,6 +201,7 @@ export const approveLeaveRequest = asyncHandler(
       const isLastStage = completedReviews + 1 === leave.reviewLevels.length;
       if (isLastStage) {
         leave.status = 'Approved';
+        leave.isActive = true;
       }
 
       await LeaveRequest.updateOne({ _id: leaveId }, leave);

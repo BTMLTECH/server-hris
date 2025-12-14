@@ -7,7 +7,7 @@ import cron from 'node-cron';
 import { autoCheckoutForgotten } from './controllers/attendanceController';
 import { Server } from 'socket.io';
 import http from 'http';
-import { runBirthdayNotifications, seedMonthlyBirthdays } from './utils/birthdayNotifications ';
+import { runBirthdayNotifications, seedMonthlyBirthdays, updateReturnedLeaves } from './utils/birthdayNotifications';
 import Company from './models/Company';
 
 dotenv.config();
@@ -82,6 +82,14 @@ mongoose
       }
       await runBirthdayNotifications(company);
     });
+
+    cron.schedule('0 8 * * *', async () => {
+      const company = await Company.findOne({ status: 'active' });
+      if (!company) return;
+      await updateReturnedLeaves(company);
+    });
+
+    
 
     // Start server
     server.listen(PORT, () => {

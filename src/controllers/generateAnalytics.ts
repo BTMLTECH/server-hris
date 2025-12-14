@@ -300,16 +300,34 @@ export const generateAnalyticsAndDashboard = asyncHandler(
       });
       const totalEmployeesTrend = employeesNow - employeesLastMonth;
 
-      const activeLeave = await LeaveRequest.countDocuments({
-        company: companyId,
-        status: 'Approved',
-        startDate: { $lte: now },
-        endDate: { $gte: now },
-      });
-      const pendingLeave = await LeaveRequest.countDocuments({
-        company: companyId,
+      const activeLeave = await LeaveRequest.find({        
+          status: 'Approved',
+          isActive: true,
+          returned: false,
+        })
+          .populate('user', 'staffId firstName lastName email department profileImage')
+          .lean();
+
+
+      // const activeLeave = await LeaveRequest.countDocuments({
+      //   company: companyId,
+      //   status: 'Approved',
+      //   startDate: { $lte: now },
+      //   endDate: { $gte: now },
+      // });
+       const pendingLeave = await LeaveRequest.find({       
         status: 'Pending',
-      });
+        isActive: false,
+        returned: false,
+        })
+          .populate('user', 'staffId firstName lastName email department profileImage')
+          .lean();
+      // const pendingLeave = await LeaveRequest.countDocuments({
+      //   company: companyId,
+      //   status: 'Pending',
+      // });
+
+
 
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -330,7 +348,7 @@ export const generateAnalyticsAndDashboard = asyncHandler(
         },
         activeLeave: {
           value: activeLeave,
-          trend: `${pendingLeave} pending approval`,
+          trend: pendingLeave,
         },
         appraisalsDue: {
           value: appraisalsDue,
@@ -396,7 +414,7 @@ export const generateAnalyticsAndDashboard = asyncHandler(
 
       recentActivity.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       const topRecentActivity = recentActivity.slice(0, 5);
-
+      
       let analytics;
       const analyticsData = {
         salaryDistributionByDept,
@@ -419,13 +437,13 @@ export const generateAnalyticsAndDashboard = asyncHandler(
           new: true,
           runValidators: true,
         });
+        
       } else {
         analytics = await Analytics.create({
           company: companyId,
           ...analyticsData,
         });
       }
-
       return res.status(existingAnalytics ? 200 : 201).json({
         success: true,
         data: {

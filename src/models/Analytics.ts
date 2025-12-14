@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, FlattenMaps } from 'mongoose';
+import { ILeaveRequest } from './LeaveRequest';
 
 // Interface for Salary Distribution by Department
 export interface ISalaryByDept {
@@ -82,8 +83,8 @@ export interface IDashboardCards {
     trend: string;
   };
   activeLeave: {
-    value: number;
-    trend: string;
+    value: FlattenMaps<ILeaveRequest>[];
+    trend: FlattenMaps<ILeaveRequest>[];
   };
   appraisalsDue: {
     value: number;
@@ -191,8 +192,8 @@ const DashboardCardsSchema = new Schema<IDashboardCards>({
     trend: { type: String, required: true },
   },
   activeLeave: {
-    value: { type: Number, required: true },
-    trend: { type: String, required: true },
+    value: [{ type: Object, required: true }], 
+    trend: [{ type: Object, required: true }], 
   },
   appraisalsDue: {
     value: { type: Number, required: true },

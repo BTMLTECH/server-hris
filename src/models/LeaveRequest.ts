@@ -44,6 +44,8 @@ export interface ILeaveRequest extends Document {
   reviewLevels: ('reliever' | 'teamlead' | 'hr')[];
   reviewTrail: IReviewStep[];
   allowance: boolean;
+  isActive: boolean;     
+  returned: boolean;     
   url?: string;
   createdAt: Date;
 }
@@ -85,6 +87,19 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>({
     enum: ['Pending', 'Approved', 'Rejected', 'Expired'],
     default: 'Pending',
   },
+
+    isActive: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    returned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+
 
   reviewLevels: {
     type: [{ type: String, enum: ['reliever', 'teamlead', 'hr'] }],

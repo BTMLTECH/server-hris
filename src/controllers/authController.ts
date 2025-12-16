@@ -450,6 +450,7 @@ export const inviteUser = asyncHandler(
     const companyId = company?._id;
     const userId = req.user?._id;
 
+
     const {
       staffId,
       title,
@@ -472,6 +473,8 @@ export const inviteUser = asyncHandler(
       nextOfKin,
       requirements,
     } = req.body;
+
+ 
 
     if (!VALID_DEPARTMENTS.includes(department)) {
       return next(new ErrorResponse(`Invalid department: ${department}`, 400));
@@ -544,6 +547,7 @@ export const inviteUser = asyncHandler(
 
     await PayrollNew.create({
       user: newUser._id,
+      company:companyId,
       classLevel: accountInfo.classLevel,
       basicSalary: accountInfo.basicPay,
       totalAllowances: payrollResult.totalAllowances,

@@ -17,6 +17,13 @@ export const ErrorMiddleware = (err: any, _req: Request, res: Response, _next: N
     const message = `Dublicate ${Object.keys(err.value)} entered`;
     err = new ErrorResponse(message, 404);
   }
+
+  //  if (err.code === 11000 && err.keyValue) {
+  // const field = Object.keys(err.keyValue)[0];
+  //   err = new ErrorResponse(`Duplicate ${field} entered`, 400);
+  // }
+ 
+
   //wrong jwt  error
   if (err.name === 'JsonWebTokenError') {
     const message = `Json web token is invalid, try again`;

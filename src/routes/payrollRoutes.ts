@@ -11,6 +11,7 @@ import {
   markPayrollsAsPaidBulk,
   deletePayroll,
   generatePayrollForCurrentMonth,
+  exportPendingPayroll,
 } from "../controllers/payrollController";
 import { protect, allowAllRoles, allowAdminAndHR } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
@@ -28,6 +29,7 @@ router.patch("/:payrollId/reverse", protect, tenantAuth, allowAdminAndHR, revers
 
 // Bulk payroll operations
 router.post("/process-bulk", protect, tenantAuth, allowAdminAndHR, processBulkPayroll);
+router.get("/download-bulk", protect, tenantAuth, allowAdminAndHR, exportPendingPayroll);
 router.post("/reverse-bulk", protect, tenantAuth, allowAdminAndHR, reverseBulkPayroll);
 router.post("/bulk-draft", protect, tenantAuth, allowAdminAndHR, markPayrollsAsDraftBulk);
 router.post("/bulk-pay", protect, tenantAuth, allowAdminAndHR, markPayrollsAsPaidBulk);

@@ -16,6 +16,8 @@ import { excludeRoles } from '../utils/excludeRoles';
 import { BulkPayrollBody, PayrollBulkBody, PayrollParams } from '../types/payrollTypes';
 import { monthNameToNumber } from '../utils/months';
 import { calculatePayroll } from '../utils/payrollCalculator';
+import { buildSimplePayrollSummary } from '../jobs/buildSimplePayrollSummary ';
+import { ICompany } from '../models/Company';
 
 export const getAllPayrolls = asyncHandler(
   async (req: TypedRequest<{}, any, {}>, res: TypedResponse<any>, next: NextFunction) => {
@@ -639,8 +641,6 @@ export const processBulkPayroll = asyncHandler(
   },
 );
 
-
-
 export const generatePayrollForCurrentMonth = asyncHandler(
   async (req: TypedRequest, res: TypedResponse<any>, next: NextFunction) => {
     const user = req.user;
@@ -734,4 +734,126 @@ export const generatePayrollForCurrentMonth = asyncHandler(
       data: { created, totalEmployees: employees.length },
     });
   }
+);
+
+
+
+// export const exportPendingPayrollExcel = asyncHandler(
+//     async (req: TypedRequest, res: TypedResponse<any>, next: NextFunction) => {
+//     const company = req.company;
+//     const companyId = company?._id;
+
+//     // Backend owns default month/year
+//     const now = new Date();
+//     const month =  now.getMonth() + 1;
+
+//     const year =  now.getFullYear();
+
+//     // Basic validation
+//     if (month < 1 || month > 12) {
+//       return next(new ErrorResponse('Invalid month', 400));
+//     }
+
+//     if (year < 2000 || year > now.getFullYear()) {
+//       return next(new ErrorResponse('Invalid year', 400));
+//     }
+
+//     // Fetch ALL payrolls (ignore pagination)
+//     const payrolls = await PayrollNew.find({
+//       company: companyId,
+//       month,
+//       year,
+//       status: 'draft',
+//     }).populate('user');
+
+//     if (!payrolls.length) {
+//       return next(
+//         new ErrorResponse(`No draft payrolls for ${month}/${year}`, 404),
+//       );
+//     }
+
+//     // Build summary
+//     const summary = buildSimplePayrollSummary(
+//       payrolls as any,
+//       month,
+//       year,
+//     );
+//     console.log('Payroll Summary:', summary);
+
+//     const filename = `Payroll_${month}_${year}_Draft`;
+
+//     // Reuse your existing Excel helper EXACTLY
+//     return ExportService.exportPayrollExcel(
+//       summary,
+//       payrolls as any,
+//       res,
+//       filename,
+//     );
+//   },
+// );
+export const exportPendingPayroll = asyncHandler(
+  async (req: TypedRequest, res: TypedResponse<any>, next: NextFunction) => {
+    const company = req.company;
+    const companyId = company?._id;
+
+    const { type = 'excel' } = req.query as { type?: 'excel' | 'pdf' };
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    if (month < 1 || month > 12) {
+      return next(new ErrorResponse('Invalid month', 400));
+    }
+
+    if (year < 2000 || year > now.getFullYear()) {
+      return next(new ErrorResponse('Invalid year', 400));
+    }
+
+    const payrolls = await PayrollNew.find({
+      company: companyId,
+      month,
+      year,
+      status: 'draft',
+    }).populate('user');
+
+    if (!payrolls.length) {
+      return next(
+        new ErrorResponse(`No draft payrolls for ${month}/${year}`, 404),
+      );
+    }
+
+    const summary = buildSimplePayrollSummary(
+      payrolls as any,
+      month,
+      year,
+    );
+
+    const filename = `Payroll_${month}_${year}_Draft`;
+
+    // 🔀 SWITCH BASED ON TYPE
+    if (type === 'pdf') {
+      const buffer = await ExportService.exportPayrollSummaryPDF(
+        summary,
+        company as ICompany,
+        { month, year },
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}.pdf"`,
+      );
+
+      return res.end(buffer);
+    }
+
+    // default → excel
+    return ExportService.exportPayrollExcel(
+      summary,
+      payrolls as any,
+      res,
+      filename,
+    );
+  },
 );

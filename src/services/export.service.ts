@@ -8,6 +8,7 @@ import { IUser } from '../models/user.model';
 import { IAttendance } from '../models/Attendance';
 import { IPayroll } from '../models/PayrollNew';
 import path from 'path';
+import { ICompany } from '../models/Company';
 
 export const formatCurrency = (amount?: number | null): string => {
   if (!amount || isNaN(amount)) return '₦0.00';
@@ -716,6 +717,8 @@ export class ExportService {
       if (key !== 'reportType') summarySheet.addRow([key, value]);
     }
 
+
+
     // Payroll sheet
     const payrollSheet = workbook.addWorksheet('Payroll');
     payrollSheet.columns = [
@@ -759,9 +762,11 @@ export class ExportService {
       });
     });
 
+
     // await workbook.xlsx.write(res);
     // res.end();
     const buffer = await workbook.xlsx.writeBuffer();
+
 
     res.setHeader(
       'Content-Type',
@@ -772,6 +777,117 @@ export class ExportService {
       `attachment; filename="${filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`}"`,
     );
 
-    res.send(Buffer.from(buffer));
+    return res.send(Buffer.from(buffer));
   }
+
+static async exportPayrollSummaryPDF(
+  summary: any,
+  company: ICompany,
+  meta: { month: number; year: number },
+): Promise<Buffer> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Uint8Array[] = [];
+
+      doc.on('data', (c) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      const robotoRegular = path.resolve(
+        process.cwd(),
+        'public/assets/fonts/Roboto-Regular.ttf',
+      );
+      const robotoBold = path.resolve(
+        process.cwd(),
+        'public/assets/fonts/Roboto-Bold.ttf',
+      );
+
+      doc.registerFont('Roboto', robotoRegular);
+      doc.registerFont('Roboto-Bold', robotoBold);
+      doc.font('Roboto');
+
+      // ===== LOGO =====
+      let logoBuffer: Buffer | null = null;
+      if (company?.branding?.logoUrl) {
+        try {
+          const resp = await axios.get(company.branding.logoUrl, {
+            responseType: 'arraybuffer',
+          });
+          logoBuffer = Buffer.from(resp.data);
+        } catch {}
+      }
+
+      if (logoBuffer) {
+        doc.image(logoBuffer, 50, 30, { width: 80 });
+      }
+
+      // ===== COMPANY NAME =====
+      doc
+        .font('Roboto-Bold')
+        .fontSize(20)
+        .text(company.branding?.displayName || company.name, 150, 40);
+
+      doc
+        .font('Roboto')
+        .fontSize(12)
+        .fillColor('gray')
+        .text(`Payroll Summary – ${meta.month}/${meta.year}`, 150, 65);
+
+      doc.moveDown(4);
+
+      // ===== SUMMARY TABLE =====
+      const startX = 70;
+      let y = doc.y;
+
+      const drawRow = (label: string, value: any) => {
+        doc.font('Roboto').fontSize(12).fillColor('black');
+        doc.text(label, startX, y);
+        doc.text(String(value), 450, y, { align: 'right' });
+        y += 20;
+      };
+
+      drawRow('Total Staff', summary.totalStaff);
+      drawRow('Total Basic Salary', formatCurrency(summary.totalBasicSalary));
+      drawRow('Total Allowances', formatCurrency(summary.totalAllowances));
+      drawRow('Total Gross Salary', formatCurrency(summary.totalGrossSalary));
+      drawRow('Total Pension', formatCurrency(summary.totalPension));
+      drawRow('Total Tax', formatCurrency(summary.totalTax));
+
+      doc.moveDown(2);
+
+      // ===== GRAND TOTAL =====
+      doc
+        .font('Roboto-Bold')
+        .fontSize(16)
+        .fillColor('green')
+        .text('Total Net Pay', startX, y);
+
+      doc.text(
+        formatCurrency(summary.totalNetSalary),
+        450,
+        y,
+        { align: 'right' },
+      );
+
+      doc.moveDown(4);
+
+      doc
+        .fontSize(10)
+        .fillColor('gray')
+        .font('Roboto')
+        .text(
+          'This is a system-generated payroll summary.',
+          { align: 'center' },
+        );
+
+      // ✅ VERY IMPORTANT
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+
 }

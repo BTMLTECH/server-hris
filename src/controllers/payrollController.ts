@@ -16,8 +16,8 @@ import { excludeRoles } from '../utils/excludeRoles';
 import { BulkPayrollBody, PayrollBulkBody, PayrollParams } from '../types/payrollTypes';
 import { monthNameToNumber } from '../utils/months';
 import { calculatePayroll } from '../utils/payrollCalculator';
-import { buildSimplePayrollSummary } from '../jobs/buildSimplePayrollSummary ';
 import { ICompany } from '../models/Company';
+import { buildSimplePayrollSummary } from '../jobs/buildSimplePayrollSummary';
 
 export const getAllPayrolls = asyncHandler(
   async (req: TypedRequest<{}, any, {}>, res: TypedResponse<any>, next: NextFunction) => {

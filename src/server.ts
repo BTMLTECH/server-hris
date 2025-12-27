@@ -7,8 +7,8 @@ import cron from 'node-cron';
 import { autoCheckoutForgotten } from './controllers/attendanceController';
 import { Server } from 'socket.io';
 import http from 'http';
-// import { runBirthdayNotifications, seedMonthlyBirthdays, updateReturnedLeaves } from './utils/birthdayNotifications';
-// import Company from './models/Company';
+import { runBirthdayNotifications, seedMonthlyBirthdays, updateReturnedLeaves } from './utils/birthdayNotifications';
+import Company from './models/Company';
 
 dotenv.config();
 const PORT = process.env.PORT || 8080;
@@ -68,26 +68,26 @@ mongoose
     //   },
     // );
 
-    // cron.schedule('0 1 * * *', async () => {
-    //   const company = await Company.findOne({ status: 'active' });
-    //   if (!company) return;
+    cron.schedule('0 1 * * *', async () => {
+      const company = await Company.findOne({ status: 'active' });
+      if (!company) return;
 
-    //   await seedMonthlyBirthdays(company);
-    // });
+      await seedMonthlyBirthdays(company);
+    });
 
-    // cron.schedule('0 8 * * *', async () => {
-    //   const company = await Company.findOne({ status: 'active' });
-    //   if (!company) {
-    //     return;
-    //   }
-    //   await runBirthdayNotifications(company);
-    // });
+    cron.schedule('0 8 * * *', async () => {
+      const company = await Company.findOne({ status: 'active' });
+      if (!company) {
+        return;
+      }
+      await runBirthdayNotifications(company);
+    });
 
-    // cron.schedule('0 8 * * *', async () => {
-    //   const company = await Company.findOne({ status: 'active' });
-    //   if (!company) return;
-    //   await updateReturnedLeaves(company);
-    // });
+    cron.schedule('0 8 * * *', async () => {
+      const company = await Company.findOne({ status: 'active' });
+      if (!company) return;
+      await updateReturnedLeaves(company);
+    });
 
     
 

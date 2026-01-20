@@ -420,6 +420,8 @@ export const sendActivationPasswordLink = asyncHandler(
       emailData,
     );
 
+
+
     if (!emailSent) {
       return next(new ErrorResponse('Failed to resend activation email', 500));
     }
@@ -1229,6 +1231,16 @@ export const setupPassword = asyncHandler(
 
     user.password = newPassword;
     user.isActive = true;
+
+        // ✅ IMPORTANT: reset lock & failed attempts
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
+
+    // ✅ clear reset state
+    user.resetRequested = false;
+    user.resetRequestedAt = undefined;
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
 
     await user.save();
 

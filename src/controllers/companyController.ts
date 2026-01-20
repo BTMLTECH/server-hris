@@ -330,7 +330,20 @@ export const resendActivationLink = asyncHandler(
       return next(new ErrorResponse('Failed to resend activation email', 500));
     }
 
-    await User.findByIdAndUpdate(user._id, { sendInvite: true }, { new: true });
+    // await User.findByIdAndUpdate(user._id, { sendInvite: true }, { new: true });
+        // ✅ RESET SECURITY STATE (AFTER EMAIL SUCCESS)
+      await User.findByIdAndUpdate(
+        user._id,
+        {
+          sendInvite: true,
+          resetRequested: false,
+          resetRequestedAt: undefined,
+          failedLoginAttempts: 0,
+          lockUntil: undefined,
+        },
+        { new: true },
+      );
+
 
     // Log the action
     await logAudit({

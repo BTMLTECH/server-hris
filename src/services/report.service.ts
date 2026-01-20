@@ -215,124 +215,257 @@ export class ReportService {
   }
 
   // controllers/report.controller.ts
-  private async generateAttendanceReport(
-    dto: GenerateReportDTO,
-    res: Response,
-    next: NextFunction,
-  ) {
-    try {
-      const { startDate, endDate, dateRange, department, exportFormat, company } = dto;
-      const today = new Date();
+  // private async generateAttendanceReport(
+  //   dto: GenerateReportDTO,
+  //   res: Response,
+  //   next: NextFunction,
+  // ) {
+  //   try {
+  //     const { startDate, endDate, dateRange, department, exportFormat, company } = dto;
+  //     const today = new Date();
 
-      let from = startDate ? new Date(startDate) : undefined;
-      let to = endDate ? new Date(endDate) : undefined;
+  //     let from = startDate ? new Date(startDate) : undefined;
+  //     let to = endDate ? new Date(endDate) : undefined;
 
-      // Predefined ranges
-      if (dateRange !== 'custom' && dateRange !== 'daily') {
-        switch (dateRange) {
-          case 'last_7_days':
-            from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
-            to = new Date();
-            break;
-          case 'last_30_days':
-            from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
-            to = new Date();
-            break;
-          case 'last_quarter':
-            from = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
-            to = new Date();
-            break;
-          case 'last_year':
-            from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-            to = new Date();
-            break;
+  //     // Predefined ranges
+  //     if (dateRange !== 'custom' && dateRange !== 'daily') {
+  //       switch (dateRange) {
+  //         case 'last_7_days':
+  //           from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+  //           to = new Date();
+  //           break;
+  //         case 'last_30_days':
+  //           from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
+  //           to = new Date();
+  //           break;
+  //         case 'last_quarter':
+  //           from = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+  //           to = new Date();
+  //           break;
+  //         case 'last_year':
+  //           from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+  //           to = new Date();
+  //           break;
+  //       }
+  //     }
+
+  //     // Daily report
+  //     if (dateRange === 'daily') {
+  //       if (!startDate) return next(new ErrorResponse('startDate required for daily report.', 403));
+  //       from = new Date(startDate);
+  //       from.setHours(0, 0, 0, 0);
+  //       to = new Date(startDate);
+  //       to.setHours(23, 59, 59, 999);
+  //     }
+
+  //     if (!from || !to)
+  //       return next(new ErrorResponse('startDate and endDate required for custom range.', 403));
+
+  //     const companyData = await Company.findById(company).lean();
+
+  //     // Attendance filter
+  //     const filter: any = {
+  //       company,
+  //       createdAt: { $gte: from, $lte: to },
+  //     };
+  //     if (department && department !== 'all') filter.department = department;
+
+  //     // Fetch records
+  //     const rawRecords = await Attendance.find(filter)
+  //       .populate('user') // populate IUser details
+  //       .lean();
+
+  //     // Assert that user exists and map to correct type
+  //     const records: (IAttendance & { user: IUser })[] = rawRecords.map((rec) => {
+  //       if (!rec.user) {
+  //         throw new Error('Attendance record missing populated user');
+  //       }
+  //       return rec as unknown as IAttendance & { user: IUser };
+  //     });
+
+  //     // Summary
+  //     const totalRecords = records.length;
+  //     const presentCount = records.filter((r) => r.status === 'present').length;
+  //     const lateCount = records.filter((r) => r.status === 'late').length;
+  //     const absentCount = records.filter((r) => r.status === 'absent').length;
+  //     const leaveCount = records.filter((r) => r.status === 'on_leave').length;
+
+  //     const totalHours = records.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+  //     const avgHours = totalRecords ? totalHours / totalRecords : 0;
+
+  //     const summary = {
+  //       reportType: 'attendance_report',
+  //       company: companyData?.name || '',
+  //       dateRange:
+  //         dateRange === 'daily'
+  //           ? from.toDateString()
+  //           : `${from.toDateString()} - ${to.toDateString()}`,
+  //       totalRecords,
+  //       presentCount,
+  //       lateCount,
+  //       absentCount,
+  //       leaveCount,
+  //       totalHours,
+  //       avgHours: avgHours.toFixed(2),
+  //     };
+
+  //     // Save report metadata
+  //     await Report.create({ ...dto, startDate: from, endDate: to, createdAt: new Date() });
+
+  //     // Filename
+  //     const rangeLabel =
+  //       dateRange === 'daily'
+  //         ? from.toISOString().split('T')[0]
+  //         : today
+  //             .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  //             .replace(/ /g, '_');
+
+  //     const filename = `Attendance_Report_${rangeLabel}.${exportFormat}`;
+
+  //     // Export
+  //     if (exportFormat === 'excel') {
+  //       return ExportService.exportAttendanceExcel(summary, records, res, filename);
+  //     }
+
+  //     // Fallback JSON
+  //     return res.json({ summary, records });
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
+
+  // controllers/report.controller.ts
+// controllers/report.controller.ts
+    private async generateAttendanceReport(
+      dto: GenerateReportDTO,
+      res: Response,
+      next: NextFunction,
+    ) {
+      try {
+        const { startDate, endDate, dateRange, department, exportFormat, company } = dto;
+
+        // Convert startDate/endDate to YYYY-MM-DD strings for comparison
+        const formatDateString = (d: Date) =>
+          d.toISOString().split('T')[0]; // "2025-12-29"
+
+        let fromStr: string | undefined;
+        let toStr: string | undefined;
+        const today = new Date();
+
+        // Daily report
+        if (dateRange === 'daily') {
+          if (!startDate)
+            return next(new ErrorResponse('startDate required for daily report.', 403));
+          fromStr = toStr = formatDateString(new Date(startDate));
         }
-      }
-
-      // Daily report
-      if (dateRange === 'daily') {
-        if (!startDate) return next(new ErrorResponse('startDate required for daily report.', 403));
-        from = new Date(startDate);
-        from.setHours(0, 0, 0, 0);
-        to = new Date(startDate);
-        to.setHours(23, 59, 59, 999);
-      }
-
-      if (!from || !to)
-        return next(new ErrorResponse('startDate and endDate required for custom range.', 403));
-
-      const companyData = await Company.findById(company).lean();
-
-      // Attendance filter
-      const filter: any = {
-        company,
-        createdAt: { $gte: from, $lte: to },
-      };
-      if (department && department !== 'all') filter.department = department;
-
-      // Fetch records
-      const rawRecords = await Attendance.find(filter)
-        .populate('user') // populate IUser details
-        .lean();
-
-      // Assert that user exists and map to correct type
-      const records: (IAttendance & { user: IUser })[] = rawRecords.map((rec) => {
-        if (!rec.user) {
-          throw new Error('Attendance record missing populated user');
+        // Custom range
+        else if (dateRange === 'custom') {
+          if (!startDate || !endDate)
+            return next(
+              new ErrorResponse('startDate and endDate required for custom range.', 403),
+            );
+          fromStr = formatDateString(new Date(startDate));
+          toStr = formatDateString(new Date(endDate));
         }
-        return rec as unknown as IAttendance & { user: IUser };
-      });
+        // Predefined ranges
+        else {
+          let from: Date;
+          let to: Date = new Date();
+          switch (dateRange) {
+            case 'last_7_days':
+              from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+              break;
+            case 'last_30_days':
+              from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
+              break;
+            case 'last_quarter':
+              from = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+              break;
+            case 'last_year':
+              from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+              break;
+            default:
+              return next(new ErrorResponse('Invalid dateRange.', 400));
+          }
+          fromStr = formatDateString(from);
+          toStr = formatDateString(to);
+        }
 
-      // Summary
-      const totalRecords = records.length;
-      const presentCount = records.filter((r) => r.status === 'present').length;
-      const lateCount = records.filter((r) => r.status === 'late').length;
-      const absentCount = records.filter((r) => r.status === 'absent').length;
-      const leaveCount = records.filter((r) => r.status === 'on_leave').length;
+        // Get company info
+        const companyData = await Company.findById(company).lean();
 
-      const totalHours = records.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
-      const avgHours = totalRecords ? totalHours / totalRecords : 0;
+        // Filter attendance by `date` string instead of createdAt
+        const filter: any = {
+          company,
+          date: { $gte: fromStr, $lte: toStr },
+        };
+        if (department && department !== 'all') filter.department = department;
 
-      const summary = {
-        reportType: 'attendance_report',
-        company: companyData?.name || '',
-        dateRange:
-          dateRange === 'daily'
-            ? from.toDateString()
-            : `${from.toDateString()} - ${to.toDateString()}`,
-        totalRecords,
-        presentCount,
-        lateCount,
-        absentCount,
-        leaveCount,
-        totalHours,
-        avgHours: avgHours.toFixed(2),
-      };
+        const rawRecords = await Attendance.find(filter)
+          .populate('user')
+          .lean();
 
-      // Save report metadata
-      await Report.create({ ...dto, startDate: from, endDate: to, createdAt: new Date() });
+        const records: (IAttendance & { user: IUser; hoursWorked: number })[] =
+          rawRecords.map((rec) => {
+            if (!rec.user) throw new Error('Attendance record missing populated user');
 
-      // Filename
-      const rangeLabel =
-        dateRange === 'daily'
-          ? from.toISOString().split('T')[0]
-          : today
-              .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-              .replace(/ /g, '_');
+            const checkInTime = new Date(rec.checkIn);
+            const checkOutTime = rec.checkOut ? new Date(rec.checkOut) : new Date();
+            const hoursWorked = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
 
-      const filename = `Attendance_Report_${rangeLabel}.${exportFormat}`;
+            const status = rec.status || (rec.checkIn ? 'present' : 'absent');
 
-      // Export
-      if (exportFormat === 'excel') {
-        return ExportService.exportAttendanceExcel(summary, records, res, filename);
+            return { ...rec, user: rec.user, hoursWorked, status } as unknown as IAttendance &
+              { user: IUser; hoursWorked: number };
+          });
+
+        // Summary
+        const totalRecords = records.length;
+        const presentCount = records.filter((r) => r.status === 'present').length;
+        const lateCount = records.filter((r) => r.status === 'late').length;
+        const absentCount = records.filter((r) => r.status === 'absent').length;
+        const leaveCount = records.filter((r) => r.status === 'on_leave').length;
+
+        const totalHours = records.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+        const avgHours = totalRecords ? totalHours / totalRecords : 0;
+
+        const summary = {
+          reportType: 'attendance_report',
+          company: companyData?.name || '',
+          dateRange:
+            dateRange === 'daily'
+              ? fromStr
+              : `${fromStr} - ${toStr}`,
+          totalRecords,
+          presentCount,
+          lateCount,
+          absentCount,
+          leaveCount,
+          totalHours,
+          avgHours: avgHours.toFixed(2),
+        };
+
+        // Save report metadata
+        await Report.create({ ...dto, startDate: new Date(fromStr), endDate: new Date(toStr), createdAt: new Date() });
+
+        const rangeLabel =
+          dateRange === 'daily' ? fromStr : today
+            .toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+            .replace(/ /g, '_');
+
+        const filename = `Attendance_Report_${rangeLabel}.${exportFormat}`;
+
+        if (exportFormat === 'excel') {
+          return ExportService.exportAttendanceExcel(summary, records, res, filename);
+        }
+
+        return res.json({ summary, records });
+      } catch (error) {
+        next(error);
       }
-
-      // Fallback JSON
-      return res.json({ summary, records });
-    } catch (error) {
-      next(error);
     }
-  }
+
+
 
   private async generatePayrollSummary(dto: GenerateReportDTO, res: Response, next: NextFunction) {
     try {

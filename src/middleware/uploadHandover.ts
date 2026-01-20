@@ -6,7 +6,7 @@ const storage = multer.memoryStorage();
 
 const uploadHandover = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB limit
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     // Accept multiple mime types (e.g., PDFs, images)
     const allowedMimes = [

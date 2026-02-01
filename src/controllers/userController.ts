@@ -60,11 +60,104 @@ export const getMyProfile = asyncHandler(
   },
 );
 
+// export const updateMyProfile = async (
+//   req: TypedRequest<{ id: string }, {}, Partial<IUser>>,
+//   res: TypedResponse<IUser>,
+//   next: NextFunction,
+// ) => {
+//   try {
+//     const { user } = req;
+//     const updates = req.body;
+//     const targetUserId = req.params.id;
+//     const companyId = req.company?._id;
+
+//     if (!targetUserId) {
+//       return next(new ErrorResponse('User ID is required in the URL for updating a profile', 400));
+//     }
+
+//     if (!['admin', 'hr'].includes(user?.role || '')) {
+//       return next(new ErrorResponse('Not authorized to perform this action', 403));
+//     }
+
+//     const { email, password, staffId, requirements, nextOfKin, ...restUpdates } = updates;
+
+//     const filteredUpdates: Partial<IUser> = {};
+//     (Object.keys(restUpdates) as Array<keyof typeof restUpdates>).forEach((key) => {
+//       const value = restUpdates[key];
+//       if (value !== undefined) {
+//         filteredUpdates[key as keyof IUser] = value as any;
+//       }
+//     });
+
+//     if (nextOfKin !== undefined) {
+//       filteredUpdates.nextOfKin = nextOfKin;
+//     }
+
+//     const updatedUser = await User.findOneAndUpdate(
+//       { _id: targetUserId, company: companyId },
+//       filteredUpdates,
+//       { new: true, runValidators: true },
+//     ).select('-password');
+
+//     if (!updatedUser) {
+//       return next(new ErrorResponse('User not found', 404));
+//     }
+
+//     if (requirements?.length) {
+//       for (const reqItem of requirements) {
+//         await OnboardingRequirement.findOneAndUpdate(
+//           { employee: targetUserId, department: reqItem.department },
+//           { tasks: reqItem.tasks },
+//           { new: true, upsert: true },
+//         );
+//       }
+//     }
+
+//     const originalUser = await User.findById(targetUserId);
+//     const hasFinancialChange =
+//       originalUser?.accountInfo?.basicPay !== updates.accountInfo?.basicPay ||
+//       originalUser?.accountInfo?.allowances !== updates.accountInfo?.allowances;
+
+//     if (hasFinancialChange) {
+//       const payrollResult = calculatePayroll({
+//         basicSalary: updates.accountInfo?.basicPay || 0,
+//         totalAllowances: updates.accountInfo?.allowances || 0,
+//       });
+
+//       await PayrollNew.findOneAndUpdate(
+//         { user: targetUserId },
+//         {
+//           basicSalary: updates.accountInfo?.basicPay,
+//           totalAllowances: updates.accountInfo?.allowances,
+//           grossSalary: payrollResult.grossSalary,
+//           pension: payrollResult.pension,
+//           CRA: payrollResult.CRA,
+//           taxableIncome: payrollResult.taxableIncome,
+//           tax: payrollResult.tax,
+//           netSalary: payrollResult.netSalary,
+//           taxBands: payrollResult.taxBands,
+//         },
+//         { new: true, upsert: true },
+//       );
+
+//       console.log('Payroll updated due to financial info change.', payrollResult);
+//     }
+
+//     return res.status(200).json({ success: true });
+//   } catch (err: any) {
+//     return next(new ErrorResponse(err.message, 500));
+//   }
+// };
+
+
 export const updateMyProfile = async (
   req: TypedRequest<{ id: string }, {}, Partial<IUser>>,
-  res: TypedResponse<IUser>,
+  res: TypedResponse<any>,
   next: NextFunction,
 ) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { user } = req;
     const updates = req.body;
@@ -72,18 +165,43 @@ export const updateMyProfile = async (
     const companyId = req.company?._id;
 
     if (!targetUserId) {
-      return next(new ErrorResponse('User ID is required in the URL for updating a profile', 400));
+      return next(new ErrorResponse('User ID is required', 400));
     }
 
     if (!['admin', 'hr'].includes(user?.role || '')) {
-      return next(new ErrorResponse('Not authorized to perform this action', 403));
+      return next(new ErrorResponse('Not authorized', 403));
     }
 
-    const { email, password, staffId, requirements, nextOfKin, ...restUpdates } = updates;
+    /* ──────────────────────────────
+       1️⃣ Fetch ORIGINAL user state
+    ────────────────────────────── */
+    const originalUser = await User.findOne({
+      _id: targetUserId,
+      company: companyId,
+    }).session(session);
+
+    if (!originalUser) {
+      return next(new ErrorResponse('User not found', 404));
+    }
+
+    console.log('Original User:', originalUser);
+
+    /* ──────────────────────────────
+       2️⃣ Filter allowed updates
+    ────────────────────────────── */
+    const {
+      email,
+      password,
+      staffId,
+      requirements,
+      nextOfKin,
+      ...restUpdates
+    } = updates;
 
     const filteredUpdates: Partial<IUser> = {};
-    (Object.keys(restUpdates) as Array<keyof typeof restUpdates>).forEach((key) => {
-      const value = restUpdates[key];
+
+
+    Object.entries(restUpdates).forEach(([key, value]) => {
       if (value !== undefined) {
         filteredUpdates[key as keyof IUser] = value as any;
       }
@@ -93,42 +211,84 @@ export const updateMyProfile = async (
       filteredUpdates.nextOfKin = nextOfKin;
     }
 
+    /* ──────────────────────────────
+       3️⃣ Update USER
+    ────────────────────────────── */
     const updatedUser = await User.findOneAndUpdate(
       { _id: targetUserId, company: companyId },
       filteredUpdates,
-      { new: true, runValidators: true },
-    ).select('-password');
+      { new: true, runValidators: true, session },
+    );
 
     if (!updatedUser) {
-      return next(new ErrorResponse('User not found', 404));
+      return next(new ErrorResponse('User not found after update', 404));
     }
 
+    /* ──────────────────────────────
+       4️⃣ Update ONBOARDING REQUIREMENTS
+    ────────────────────────────── */
     if (requirements?.length) {
-      for (const reqItem of requirements) {
-        await OnboardingRequirement.findOneAndUpdate(
-          { employee: targetUserId, department: reqItem.department },
-          { tasks: reqItem.tasks },
-          { new: true, upsert: true },
-        );
-      }
+      await Promise.all(
+        requirements.map((reqItem) =>
+          OnboardingRequirement.findOneAndUpdate(
+            {
+              employee: targetUserId,
+              department: reqItem.department,
+              company: companyId,
+            },
+            {
+              tasks: reqItem.tasks,
+            },
+            {
+              new: true,
+              upsert: true,
+              session,
+            },
+          ),
+        ),
+      );
     }
 
-    const originalUser = await User.findById(targetUserId);
+    /* ──────────────────────────────
+       5️⃣ Detect PAYROLL-RELEVANT CHANGES
+    ────────────────────────────── */
     const hasFinancialChange =
-      originalUser?.accountInfo?.basicPay !== updates.accountInfo?.basicPay ||
-      originalUser?.accountInfo?.allowances !== updates.accountInfo?.allowances;
+      originalUser.accountInfo?.classLevel !== updatedUser.accountInfo?.classLevel ||
+      originalUser.accountInfo?.basicPay !==
+        updatedUser.accountInfo?.basicPay ||
+      originalUser.accountInfo?.allowances !==
+        updatedUser.accountInfo?.allowances;
 
+    /* ──────────────────────────────
+       6️⃣ Recalculate PAYROLL if needed
+    ────────────────────────────── */
     if (hasFinancialChange) {
+      const basicPay = updatedUser.accountInfo?.basicPay ?? 0;
+      const allowances = updatedUser.accountInfo?.allowances ?? 0;
+
       const payrollResult = calculatePayroll({
-        basicSalary: updates.accountInfo?.basicPay || 0,
-        totalAllowances: updates.accountInfo?.allowances || 0,
+        basicSalary: basicPay,
+        totalAllowances: allowances,
       });
 
+
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+
       await PayrollNew.findOneAndUpdate(
-        { user: targetUserId },
         {
-          basicSalary: updates.accountInfo?.basicPay,
-          totalAllowances: updates.accountInfo?.allowances,
+          user: targetUserId,
+          company: companyId,
+          month,
+          year,
+        },
+        {
+          user: targetUserId,
+          company: companyId,
+          classLevel: updatedUser.accountInfo?.classLevel,
+          basicSalary: basicPay,
+          totalAllowances: allowances,
           grossSalary: payrollResult.grossSalary,
           pension: payrollResult.pension,
           CRA: payrollResult.CRA,
@@ -136,13 +296,32 @@ export const updateMyProfile = async (
           tax: payrollResult.tax,
           netSalary: payrollResult.netSalary,
           taxBands: payrollResult.taxBands,
+          status: 'pending',
+          month,
+          year,
         },
-        { new: true, upsert: true },
+        {
+          new: true,
+          upsert: true,
+          session,
+        },
       );
     }
 
-    return res.status(200).json({ success: true });
+    /* ──────────────────────────────
+       7️⃣ Commit TRANSACTION
+    ────────────────────────────── */
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      // data: { data: updatedUser },
+    });
   } catch (err: any) {
+    await session.abortTransaction();
+    session.endSession();
     return next(new ErrorResponse(err.message, 500));
   }
 };

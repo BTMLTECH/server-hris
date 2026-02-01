@@ -35,7 +35,7 @@ router.post("/bulk-draft", protect, tenantAuth, allowAdminAndHR, markPayrollsAsD
 router.post("/bulk-pay", protect, tenantAuth, allowAdminAndHR, markPayrollsAsPaidBulk);
 
 // Delete payroll
-router.delete("/:id", protect, tenantAuth, allowAdminAndHR, deletePayroll);
+router.delete("/:payrollId/delete", protect, tenantAuth, allowAdminAndHR, deletePayroll);
 
 // generate payroll for current month
 router.post("/generate-bulk", protect, tenantAuth, allowAdminAndHR, generatePayrollForCurrentMonth);

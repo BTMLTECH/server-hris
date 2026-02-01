@@ -116,6 +116,7 @@ export const getAllPayrolls = asyncHandler(
 
 export const deletePayroll = asyncHandler(
   async (req: TypedRequest<PayrollParams>, res: any, next: NextFunction) => {
+
     const payrollId = req.params.payrollId;
     const payroll = await PayrollNew.findById(payrollId);
     if (!payroll) return next(new ErrorResponse('Payroll not found', 404));

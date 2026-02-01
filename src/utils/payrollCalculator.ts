@@ -55,7 +55,7 @@ export const calculatePayroll = ({
     const bandTax = amount * rate;
 
     taxBands.push({
-      band: Math.round(rate * 100), // store rate as %
+      band: Math.round(rate * 100),
       amount: bandTax,
     });
 

@@ -50,118 +50,7 @@ export interface ILeaveRequest extends Document {
   createdAt: Date;
 }
 
-// const LeaveRequestSchema = new Schema<ILeaveRequest>({
-//   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-//   teamlead: { type: Schema.Types.ObjectId, ref: 'User', required: true },
 
-//   relievers: [
-//     {
-//       user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-//       firstName: { type: String, required: true },
-//       lastName: { type: String, required: true },
-//       status: {
-//         type: String,
-//         enum: ['Pending', 'Approved', 'Rejected'],
-//         default: 'Pending',
-//       },
-//       note: { type: String },
-//       creactedAt: { type: Date },
-//     },
-//   ],
-
-//   type: {
-//     type: String,
-//     enum: ['compassionate', 'annual', 'maternity'],
-//     required: true,
-//   },
-
-//   typeIdentify: { type: String, enum: ['leave'], required: true },
-
-//   startDate: { type: Date, required: true },
-//   endDate: { type: Date, required: true },
-//   days: { type: Number },
-//   reason: { type: String, required: true },
-
-//   status: {
-//     type: String,
-//     enum: ['Pending', 'Approved', 'Rejected', 'Expired'],
-//     default: 'Pending',
-//   },
-
-//     isActive: {
-//       type: Boolean,
-//       default: false,
-//       index: true,
-//     },
-//     returned: {
-//       type: Boolean,
-//       default: false,
-//       index: true,
-//     },
-
-
-
-//   // reviewLevels: {
-//   //   type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
-//   //   default: function () {
-//   //     // Dynamically set relievers (2–3) + teamlead + hr
-//   //     const relieverCount = Math.min(Math.max(this.relievers?.length || 2, 2), 3);
-//   //     return Array(relieverCount).fill('reliever').concat(['teamlead', 'hr']);
-//   //   },
-//     // validate: {
-//     //   validator: function (v: string[]) {
-//     //     if (!Array.isArray(v)) return false;
-//     //     const relieversCount = v.filter((r) => r === 'reliever').length;
-//     //     const endsCorrectly = v[v.length - 2] === 'teamlead' && v[v.length - 1] === 'hr';
-//     //     return (relieversCount === 2 || relieversCount === 3) && endsCorrectly;
-//     //   },
-//     //   message:
-//     //     'Review flow must start with 2 or 3 relievers, then include teamlead → hr as final approvers',
-//     // },
-//   // },
-
-//     reviewLevels: {
-//     type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
-//     default: function () {
-//       if (!this.relievers || this.relievers.length === 0) {
-//         return ['hr', 'md']; // teamlead leave
-//       }
-//       const relieverCount = Math.min(Math.max(this.relievers?.length || 2, 2), 3);
-//       return Array(relieverCount).fill('reliever').concat(['teamlead', 'hr']);
-//     },
-
-//     validate: {
-//       validator: function (v: string[]) {
-//         if (!Array.isArray(v)) return false;
-//         // If there are no relievers, it's a teamlead leave
-//         if (!this.relievers || this.relievers.length === 0) {
-//           return v.length === 2 && v[0] === 'hr' && v[1] === 'md';
-//         }
-
-//         // For normal staff leaves, enforce 2–3 relievers then teamlead → hr
-//         const relieversCount = v.filter((r) => r === 'reliever').length;
-//         const endsCorrectly = v[v.length - 2] === 'teamlead' && v[v.length - 1] === 'hr';
-//         return (relieversCount === 2 || relieversCount === 3) && endsCorrectly;
-//       },
-//       message:
-//         'Review flow must start with 2 or 3 relievers, then include teamlead → hr as final approvers, or hr → md for teamlead leave',
-//     },
-
-//   },
-//   reviewTrail: [
-//     {
-//       reviewer: { type: Schema.Types.ObjectId, ref: 'User' },
-//       role: { type: String },
-//       action: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Expired'] },
-//       date: { type: Date },
-//       note: { type: String },
-//     },
-//   ],
-
-//   allowance: { type: Boolean, default: true },
-//   url: { type: String },
-//   createdAt: { type: Date, default: Date.now },
-// });
 const LeaveRequestSchema = new Schema<ILeaveRequest>({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   teamlead: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -213,65 +102,50 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>({
 
 
 
-  // reviewLevels: {
-  //   type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
-  //   default: function () {
-  //     // Dynamically set relievers (2–3) + teamlead + hr
-  //     const relieverCount = Math.min(Math.max(this.relievers?.length || 2, 2), 3);
-  //     return Array(relieverCount).fill('reliever').concat(['teamlead', 'hr']);
-  //   },
-    // validate: {
-    //   validator: function (v: string[]) {
-    //     if (!Array.isArray(v)) return false;
-    //     const relieversCount = v.filter((r) => r === 'reliever').length;
-    //     const endsCorrectly = v[v.length - 2] === 'teamlead' && v[v.length - 1] === 'hr';
-    //     return (relieversCount === 2 || relieversCount === 3) && endsCorrectly;
-    //   },
-    //   message:
-    //     'Review flow must start with 2 or 3 relievers, then include teamlead → hr as final approvers',
-    // },
-  // },
 
-    reviewLevels: {
-    type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
-    default: function () {
-      if (!this.relievers || this.relievers.length === 0) {
-        return ['hr', 'md']; // teamlead leave
-      }
-      const relieverCount = Math.min(Math.max(this.relievers?.length || 2, 2), 3);
-      return Array(relieverCount).fill('reliever').concat(['teamlead', 'hr', 'md']);
-    },
 
-   
-    validate: {
-  validator: function (v: string[]) {
-    if (!Array.isArray(v)) return false;
+//   reviewLevels: {
+//   type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
 
-    // Teamlead leave → hr → md
-    if (!this.relievers || this.relievers.length === 0) {
-      return v.length === 2 && v[0] === 'hr' && v[1] === 'md';
-    }
+//   default: function () {
+//     // Always enforce exactly 2 relievers
+//     const relieverCount = 2;
+//     const relievers = Array(relieverCount).fill('reliever');
 
-    // Staff leave → relievers → teamlead → hr → md
-    const relieversCount = v.filter(r => r === 'reliever').length;
+//     // Default: Employee flow → include teamlead
+//     return [...relievers, 'teamlead', 'hr', 'md'];
+//   },
 
-    const endsCorrectly =
-      v[v.length - 3] === 'teamlead' &&
-      v[v.length - 2] === 'hr' &&
-      v[v.length - 1] === 'md';
+//   validate: {
+//     validator: function (v: string[]) {
+//       if (!Array.isArray(v)) return false;
 
-    return (
-      (relieversCount === 2 || relieversCount === 3) &&
-      endsCorrectly
-    );
-  },
-  message:
-    'Review flow must be relievers → teamlead → hr → md, or hr → md for teamlead leave',
+//       // Must start with exactly 2 relievers
+//       const relieversCount = v.filter(r => r === 'reliever').length;
+//       if (relieversCount !== 2) return false;
+
+//       // EMPLOYEE REQUEST → reliever, reliever, teamlead, hr, md
+//       return (
+//         v.length === 5 &&
+//         v[0] === 'reliever' &&
+//         v[1] === 'reliever' &&
+//         v[2] === 'teamlead' &&
+//         v[3] === 'hr' &&
+//         v[4] === 'md'
+//       );
+//     },
+
+//     message:
+//       'Invalid review flow. Expected: reliever → reliever → teamlead → hr → md.',
+//   },
+// },
+reviewLevels: {
+  type: [{ type: String, enum: ['reliever', 'teamlead', 'hr', 'md'] }],
+  required: true,
 },
 
 
-  },
-  reviewTrail: [
+reviewTrail: [
     {
       reviewer: { type: Schema.Types.ObjectId, ref: 'User' },
       role: { type: String },

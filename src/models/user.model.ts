@@ -370,7 +370,7 @@ const UserSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, select: false, required: true },
+    password: { type: String, select: false, required: false },
 
     department: {
       type: String,

@@ -190,4 +190,14 @@ export interface InviteUserDTO {
     }>;
     createdAt?: string | Date;
   }>;
+  lga?: string;
+  town?: string;
+  alternatePhoneNumber?: string;
+  meansOfIdentification?: string;
+  meansOfIdentificationNumber?: string;
+  stateOfIssuance?: string;
+  nationalIdNumber?: string;
+  numberOfPrimaryDependants?: number;
+  totalMonthlyEarnings?: number;
+  kobo?: number;
 }

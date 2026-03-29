@@ -369,6 +369,7 @@ export const getAllUsers = asyncHandler(
     const page = parseInt(req.query.page ?? '1', 10);
     const limit = parseInt(req.query.limit ?? '50', 10);
     const skip = (page - 1) * limit;
+    const fetchAll = limit === -1;
 
     const search = req.query.search?.trim();
     const department = req.query.department;
@@ -402,8 +403,8 @@ export const getAllUsers = asyncHandler(
     const [users, total] = await Promise.all([
       User.find(filters)
         .select('-password')
-        .skip(skip)
-        .limit(limit)
+        .skip(fetchAll ? 0 : skip)
+        .limit(fetchAll ? 999999 : limit)
         .populate({
           path: 'requirements',
         })

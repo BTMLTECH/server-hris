@@ -442,6 +442,258 @@ export const sendActivationPasswordLink = asyncHandler(
   },
 );
 
+// export const inviteUser = asyncHandler(
+//   async (
+//     req: TypedRequest<{}, {}, InviteUserDTO>,
+//     res: TypedResponse<{ user: IUser }>,
+//     next: NextFunction,
+//   ) => {
+//     const company = req.company;
+//     const companyId = company?._id;
+//     const userId = req.user?._id;
+
+
+//     const {
+//       staffId,
+//       title,
+//       firstName,
+//       lastName,
+//       middleName,
+//       gender,
+//       dateOfBirth,
+//       stateOfOrigin,
+//       address,
+//       city,
+//       mobile,
+//       email,
+//       department,
+//       position,
+//       officeBranch,
+//       employmentDate,
+//       accountInfo,
+//       role,
+//       nextOfKin,
+//       requirements,
+//     } = req.body;
+
+ 
+
+//     if (!VALID_DEPARTMENTS.includes(department)) {
+//       return next(new ErrorResponse(`Invalid department: ${department}`, 400));
+//     }
+
+//     // Required field validation
+//     if (
+//       !staffId ||
+//       !title ||
+//       !gender ||
+//       !email ||
+//       !role ||
+//       !firstName ||
+//       !lastName ||
+//       !department ||
+//       !employmentDate ||
+//       !mobile ||
+//       !dateOfBirth ||
+//       !stateOfOrigin ||
+//       !city ||
+//       !position ||
+//       !officeBranch ||
+//       !address ||
+//       !accountInfo?.classLevel ||
+//       !accountInfo?.basicPay ||
+//       !accountInfo?.allowances ||
+//       !accountInfo?.bankAccountNumber ||
+//       !accountInfo?.bankName ||
+//       !nextOfKin?.name ||
+//       !nextOfKin?.phone ||
+//       !nextOfKin?.relationship
+//     ) {
+//       return next(new ErrorResponse('Missing required fields', 400));
+//     }
+
+//     const normalizedEmail = email.toLowerCase().trim();
+//     const existing = await User.findOne({ email: normalizedEmail });
+//     if (existing) return next(new ErrorResponse('User already exists', 400));
+
+//     // 👤 Create user
+//     const newUser = await User.create({
+//       staffId,
+//       title,
+//       gender,
+//       firstName,
+//       lastName,
+//       middleName,
+//       email: normalizedEmail,
+//       department,
+//       role,
+//       isActive: false,
+//       company: companyId,
+//       employmentDate,
+//       mobile,
+//       dateOfBirth,
+//       position,
+//       address,
+//       city,
+//       stateOfOrigin,
+//       accountInfo,
+//       nextOfKin,
+//       status: 'active',
+//     });
+
+//     // Payroll creation
+//     const payrollResult = calculatePayroll({
+//       basicSalary: accountInfo.basicPay!,
+//       totalAllowances: accountInfo.allowances!,
+//     });
+
+//     await PayrollNew.create({
+//       user: newUser._id,
+//       company:companyId,
+//       classLevel: accountInfo.classLevel,
+//       basicSalary: accountInfo.basicPay,
+//       totalAllowances: payrollResult.totalAllowances,
+//       grossSalary: payrollResult.grossSalary,
+//       pension: payrollResult.pension,
+//       CRA: payrollResult.CRA,
+//       taxableIncome: payrollResult.taxableIncome,
+//       tax: payrollResult.tax,
+//       netSalary: payrollResult.netSalary,
+//       taxBands: payrollResult.taxBands,
+//       month: new Date().getMonth() + 1,
+//       year: new Date().getFullYear(),
+//       status: 'pending',
+//     });
+
+//     await LeaveBalance.create({
+//       user: newUser._id,
+//       company: companyId,
+//       balances: {
+//         annual: LeaveEntitlements.annual,
+//         compassionate: LeaveEntitlements.compassionate,
+//         maternity: LeaveEntitlements.maternity,
+//       },
+//       year: new Date().getFullYear(),
+//     });
+
+//     let createdRequirements: any[] = [];
+//     if (requirements && requirements.length > 0) {
+//       for (const req of requirements) {
+//         const tasks = req.tasks.map((task) => ({
+//           name: task.name,
+//           category: task.category,
+//           completed: Boolean(task.completed),
+//           completedAt: task.completed
+//             ? task.completedAt
+//               ? new Date(task.completedAt)
+//               : new Date()
+//             : undefined,
+//         }));
+
+//         const doc = await OnboardingRequirement.create({
+//           employee: newUser._id,
+//           department: req.department,
+//           tasks,
+//           createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+//         });
+
+//         createdRequirements.push({
+//           employee: doc.employee?.toString() || '',
+//           department: doc.department,
+//           tasks: doc.tasks.map((t) => ({
+//             name: t.name,
+//             category: t.category,
+//             completed: t.completed,
+//             completedAt: t.completedAt || undefined,
+//           })),
+//           createdAt: doc.createdAt,
+//         });
+//       }
+//     }
+
+//     const departmentTasks: Record<string, string[]> = {};
+//     for (const req of createdRequirements) {
+//       departmentTasks[req.department] = req.tasks.map((t: { name: any }) => t.name);
+//     }
+
+//     await Promise.all(
+//       Object.entries(departmentTasks).map(async ([dept, tasks]) => {
+//         const roleToNotify = dept.toLowerCase() === 'hr' ? 'hr' : 'teamlead';
+//         const leadUser = await User.findOne({
+//           department: dept,
+//           role: roleToNotify,
+//         });
+//         if (!leadUser) return;
+
+//         await sendNotification({
+//           user: leadUser,
+//           type: 'INFO',
+//           title: `New Onboarding Tasks`,
+//           message: `A new staff (${firstName} ${lastName}) has the following ${dept} requirements: ${tasks.join(', ')}`,
+//           emailSubject: `Onboarding Tasks for ${dept}`,
+//           emailTemplate: 'requirement-notification.ejs',
+//           emailData: {
+//             name: leadUser.firstName,
+//             staffName: `${firstName} ${lastName}`,
+//             department: dept,
+//             tasks,
+//             companyName: company?.branding?.displayName || company?.name,
+//             logoUrl: company?.branding?.logoUrl,
+//             primaryColor: company?.branding?.primaryColor || '#0621b6b0',
+//           },
+//         });
+//       }),
+//     );
+
+//     const { activationCode, token } = (exports as any).accessToken(newUser);
+//     const setupLink = createActivationLink(token);
+//     const decoded = jwt.decode(token) as { exp: number };
+
+//     if (!decoded || !decoded.exp) {
+//       return next(new ErrorResponse('Invalid token or missing expiration', 500));
+//     }
+
+//     const expiryTimestamp = decoded.exp * 1000;
+//     const minutesLeft = Math.ceil((expiryTimestamp - Date.now()) / (60 * 1000));
+
+//     const emailSent = await sendNotification({
+//       user: newUser,
+//       type: 'INVITE',
+//       title: 'Account Setup Invitation',
+//       message: `Welcome ${firstName}, please activate your account.`,
+//       emailSubject: 'Account Setup Invitation',
+//       emailTemplate: 'account-setup.ejs',
+//       emailData: {
+//         name: firstName,
+//         activationCode,
+//         setupLink,
+//         expiresAt: `in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}`,
+//         companyName: company?.branding?.displayName || company?.name,
+//         logoUrl: company?.branding?.logoUrl,
+//         primaryColor: company?.branding?.primaryColor || '#0621b6b0',
+//       },
+//     });
+
+//     if (emailSent) {
+//       await User.findByIdAndUpdate(newUser._id, { isActive: true });
+//     }
+
+//     await logAudit({
+//       userId,
+//       action: 'INVITE_USER',
+//       status: 'SUCCESS',
+//       ip: req.ip,
+//       userAgent: req.get('user-agent'),
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: `${role} invited successfully`,
+//       data: { user: newUser },
+//     });
+//   },
+// );
+
 export const inviteUser = asyncHandler(
   async (
     req: TypedRequest<{}, {}, InviteUserDTO>,
@@ -452,7 +704,6 @@ export const inviteUser = asyncHandler(
     const companyId = company?._id;
     const userId = req.user?._id;
 
-
     const {
       staffId,
       title,
@@ -462,27 +713,35 @@ export const inviteUser = asyncHandler(
       gender,
       dateOfBirth,
       stateOfOrigin,
+      lga,
+      town,
       address,
       city,
       mobile,
+      alternatePhoneNumber,
       email,
       department,
       position,
       officeBranch,
       employmentDate,
+      meansOfIdentification,
+      meansOfIdentificationNumber,
+      stateOfIssuance,
+      nationalIdNumber,
       accountInfo,
+      numberOfPrimaryDependants,
+      totalMonthlyEarnings,
+      kobo,
       role,
       nextOfKin,
       requirements,
     } = req.body;
 
- 
-
     if (!VALID_DEPARTMENTS.includes(department)) {
       return next(new ErrorResponse(`Invalid department: ${department}`, 400));
     }
 
-    // Required field validation
+    // Required field validation (only core fields)
     if (
       !staffId ||
       !title ||
@@ -516,7 +775,7 @@ export const inviteUser = asyncHandler(
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) return next(new ErrorResponse('User already exists', 400));
 
-    // 👤 Create user
+    // 👤 Create user with all fields
     const newUser = await User.create({
       staffId,
       title,
@@ -531,12 +790,22 @@ export const inviteUser = asyncHandler(
       company: companyId,
       employmentDate,
       mobile,
+      alternatePhoneNumber,
       dateOfBirth,
       position,
       address,
       city,
       stateOfOrigin,
+      lga,
+      town,
+      meansOfIdentification,
+      meansOfIdentificationNumber,
+      stateOfIssuance,
+      nationalIdNumber,
       accountInfo,
+      numberOfPrimaryDependants,
+      totalMonthlyEarnings,
+      kobo,
       nextOfKin,
       status: 'active',
     });
@@ -549,7 +818,7 @@ export const inviteUser = asyncHandler(
 
     await PayrollNew.create({
       user: newUser._id,
-      company:companyId,
+      company: companyId,
       classLevel: accountInfo.classLevel,
       basicSalary: accountInfo.basicPay,
       totalAllowances: payrollResult.totalAllowances,

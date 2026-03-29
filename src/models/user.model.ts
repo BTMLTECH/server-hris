@@ -1,3 +1,5 @@
+
+
 // import mongoose, { Schema, Document } from 'mongoose';
 // import bcrypt from 'bcryptjs';
 // import jwt from 'jsonwebtoken';
@@ -42,6 +44,7 @@
 //   address?: string;
 //   city?: string;
 //   mobile?: string;
+//   maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';  
 //   profileImage?: string;
 //   nextOfKin?: NextOfKin;
 //   email: string;
@@ -49,6 +52,10 @@
 //   department:
 //     | 'it'
 //     | 'account'
+//     | 'audit'
+//     | 'executiveOffice'
+//     | 'secretariatLegal'
+//     | 'commercial'
 //     | 'hr'
 //     | 'channel'
 //     | 'retail'
@@ -67,7 +74,7 @@
 //   officeBranch?: 'Head Office' | 'Shell SBU';
 //   employmentDate?: Date;
 //   accountInfo?: AccountInfo;
-//   role: 'employee' | 'md' | 'teamlead' | 'admin' | 'hr';
+//   role: 'employee' | 'md' | 'teamlead' | 'admin' | 'hr' | 'reliever';
 //   company: mongoose.Types.ObjectId | ICompany;
 //   status: 'active' | 'inactive' | 'terminated';
 //   terminationDate?: Date;
@@ -98,21 +105,24 @@
 //       required: true,
 //     },
 //     firstName: { type: String, required: true, trim: true },
-//     middleName: { type: String },
+//     middleName: { type: String, required: false, default: null },
 //     lastName: { type: String, required: true, trim: true },
 //     gender: { type: String, enum: ['male', 'female'], required: true },
-//     dateOfBirth: Date,
+//     maritalStatus: { type: String, enum: ['single', 'married', 'divorced', 'widowed'], required: false, default: null },
+//     dateOfBirth: { type: Date, required: false, default: null },
 //     stateOfOrigin: { type: String, enum: NIGERIAN_STATES, required: false, default: null },
-//     address: String,
-//     city: String,
-//     mobile: String,
-//     profileImage: String,
+//     address: { type: String, required: false, default: null },
+//     city: { type: String, required: false, default: null },
+//     mobile: { type: String, required: false, default: null },
+//     profileImage: { type: String, required: false, default: null },
+
 //     nextOfKin: {
-//       name: String,
-//       phone: String,
-//       email: String,
-//       relationship: String,
+//       name: { type: String, required: false, default: null },
+//       phone: { type: String, required: false, default: null },
+//       email: { type: String, required: false, default: null },
+//       relationship: { type: String, required: false, default: null },
 //     },
+
 //     email: {
 //       type: String,
 //       unique: true,
@@ -120,12 +130,17 @@
 //       lowercase: true,
 //       trim: true,
 //     },
-//     password: { type: String, select: false },
+//     password: { type: String, select: false, required: false },
+
 //     department: {
 //       type: String,
 //       enum: [
 //         'it',
 //         'account',
+//         'audit',
+//         'executiveOffice',
+//         'secretariatLegal',
+//         'commercial',
 //         'hr',
 //         'channel',
 //         'retail',
@@ -142,30 +157,34 @@
 //       ],
 //       required: true,
 //     },
-//     position: String,
-//     level: String,
-    // officeBranch: {
-    //   type: String,
-    //   enum: ['Head Office', 'Shell SBU'],
-    //   required: false,
-    // },
-//     employmentDate: { type: Date, required: false, default: null },
-//     accountInfo: {
-//       classLevel: String,
-//       basicPay: Number,
-//       allowances: Number,
-//       bankAccountNumber: String,
-//       bankName: { type: String, enum: NIGERIAN_BANKS, required: false, default: null },
-//       taxNumber: String,
-//       pensionCompany: { type: String, enum: PFA_COMPANIES, required: false, default: null },
-//       pensionNumber: String,
+
+//     position: { type: String, required: false, default: null },
+//     level: { type: String, required: false, default: null },
+//     officeBranch: {
+//       type: String,
+//       enum: ['Head Office', 'Shell SBU'],
+//       required: false,
 //     },
+//     employmentDate: { type: Date, required: false, default: null },
+
+//     accountInfo: {
+//       classLevel: { type: String, required: false, default: null },
+//       basicPay: { type: Number, required: false, default: null },
+//       allowances: { type: Number, required: false, default: null },
+//       bankAccountNumber: { type: String, required: false, default: null },
+//       bankName: { type: String, enum: NIGERIAN_BANKS, required: false, default: null },
+//       taxNumber: { type: String, required: false, default: null },
+//       pensionCompany: { type: String, enum: PFA_COMPANIES, required: false, default: null },
+//       pensionNumber: { type: String, required: false, default: null },
+//     },
+
 //     role: {
 //       type: String,
 //       enum: ['employee', 'md', 'teamlead', 'admin', 'hr', 'reliever'],
 //       default: 'employee',
 //     },
 //     company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+
 //     status: {
 //       type: String,
 //       enum: ['active', 'inactive', 'terminated'],
@@ -175,19 +194,21 @@
 //     terminationDate: { type: Date, default: null },
 //     isActive: { type: Boolean, default: false },
 //     failedLoginAttempts: { type: Number, default: 0 },
-//     lockUntil: Date,
+//     lockUntil: { type: Date, required: false, default: null },
 //     resetRequested: { type: Boolean, default: false },
-//     resetRequestedAt: Date,
+//     resetRequestedAt: { type: Date, required: false, default: null },
 //     twoFactorEnabled: { type: Boolean, default: true },
+
 //     cooperative: {
 //       monthlyContribution: { type: Number, default: 0 },
 //       totalContributed: { type: Number, default: 0 },
-//       lastContributionDate: Date,
+//       lastContributionDate: { type: Date, required: false, default: null },
 //     },
-//     twoFactorCode: String,
-//     twoFactorExpiry: Date,
-//     resetToken: String,
-//     resetTokenExpiry: Date,
+
+//     twoFactorCode: { type: String, required: false, default: null },
+//     twoFactorExpiry: { type: Date, required: false, default: null },
+//     resetToken: { type: String, required: false, default: null },
+//     resetTokenExpiry: { type: Date, required: false, default: null },
 //     createdAt: { type: Date, default: Date.now },
 //   },
 //   { toJSON: { virtuals: true }, toObject: { virtuals: true } },
@@ -281,10 +302,13 @@ export interface IUser extends Document {
   gender: 'male' | 'female';
   dateOfBirth?: Date;
   stateOfOrigin?: string;
+  lga?: string;
+  town?: string;
   address?: string;
   city?: string;
   mobile?: string;
-  maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';  
+  alternatePhoneNumber?: string;
+  maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed';
   profileImage?: string;
   nextOfKin?: NextOfKin;
   email: string;
@@ -313,7 +337,14 @@ export interface IUser extends Document {
   level?: string;
   officeBranch?: 'Head Office' | 'Shell SBU';
   employmentDate?: Date;
+  meansOfIdentification?: string;
+  meansOfIdentificationNumber?: string;
+  stateOfIssuance?: string;
+  nationalIdNumber?: string;
   accountInfo?: AccountInfo;
+  numberOfPrimaryDependants?: number;
+  totalMonthlyEarnings?: number;
+  kobo?: number;
   role: 'employee' | 'md' | 'teamlead' | 'admin' | 'hr' | 'reliever';
   company: mongoose.Types.ObjectId | ICompany;
   status: 'active' | 'inactive' | 'terminated';
@@ -351,9 +382,12 @@ const UserSchema = new Schema<IUser>(
     maritalStatus: { type: String, enum: ['single', 'married', 'divorced', 'widowed'], required: false, default: null },
     dateOfBirth: { type: Date, required: false, default: null },
     stateOfOrigin: { type: String, enum: NIGERIAN_STATES, required: false, default: null },
+    lga: { type: String, required: false, default: null },
+    town: { type: String, required: false, default: null },
     address: { type: String, required: false, default: null },
     city: { type: String, required: false, default: null },
     mobile: { type: String, required: false, default: null },
+    alternatePhoneNumber: { type: String, required: false, default: null },
     profileImage: { type: String, required: false, default: null },
 
     nextOfKin: {
@@ -406,6 +440,10 @@ const UserSchema = new Schema<IUser>(
       required: false,
     },
     employmentDate: { type: Date, required: false, default: null },
+    meansOfIdentification: { type: String, required: false, default: null },
+    meansOfIdentificationNumber: { type: String, required: false, default: null },
+    stateOfIssuance: { type: String, enum: NIGERIAN_STATES, required: false, default: null },
+    nationalIdNumber: { type: String, required: false, default: null },
 
     accountInfo: {
       classLevel: { type: String, required: false, default: null },
@@ -417,6 +455,10 @@ const UserSchema = new Schema<IUser>(
       pensionCompany: { type: String, enum: PFA_COMPANIES, required: false, default: null },
       pensionNumber: { type: String, required: false, default: null },
     },
+
+    numberOfPrimaryDependants: { type: Number, required: false, default: null },
+    totalMonthlyEarnings: { type: Number, required: false, default: null },
+    kobo: { type: Number, required: false, default: null },
 
     role: {
       type: String,

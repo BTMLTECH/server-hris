@@ -125,132 +125,654 @@ export class ExportService {
   }
 
   // ------------------- PDF EXPORT --------------------
-  static async exportPDF(
-    summary: any,
-    employees: IUser[],
-    companyData: any,
-    res: Response,
-    filename: string,
-  ) {
+  // static async  exportPDF(
+  //   summary: any,
+  //   employees: IUser[],
+  //   companyData: any,
+  //   res: Response,
+  //   filename: string,
+  // ) {
+  //   res.setHeader('Content-Type', 'application/pdf');
+  //   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+  //   const doc = new PDFDocument({ margin: 30 });
+
+  //   const fontPath = path.resolve(__dirname, '../assets/fonts/Roboto-Regular.ttf');
+  //   doc.registerFont('Main', fontPath);
+  //   doc.font('Main');
+
+  //   doc.pipe(res);
+
+  //   // Company logo / name
+  //   if (companyData?.branding?.logoUrl) {
+  //     try {
+  //       const logoResp = await axios.get(companyData.branding.logoUrl, {
+  //         responseType: 'arraybuffer',
+  //       });
+  //       doc.image(Buffer.from(logoResp.data, 'binary'), { width: 100, align: 'center' });
+  //     } catch {
+  //       doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
+  //     }
+  //   } else {
+  //     doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
+  //   }
+
+  //   doc.moveDown(2);
+  //   doc
+  //     .fontSize(22)
+  //     .text(
+  //       summary.reportType === 'department_analysis'
+  //         ? 'Department Analysis Report'
+  //         : 'Employment Summary Report',
+  //       { align: 'center', underline: true },
+  //     );
+  //   doc.moveDown(1);
+
+  //   // Summary table
+  //   if (summary.reportType === 'department_analysis') {
+  //     doc.fontSize(14).text('Department Data:', { underline: true });
+  //     summary.data.forEach((dept: any) => {
+  //       doc
+  //         .fontSize(12)
+  //         .text(
+  //           `${dept.department} - Employees: ${dept.totalEmployees}, Avg Salary: ${dept.avgSalary.toFixed(
+  //             2,
+  //           )}`,
+  //         );
+  //     });
+  //   } else {
+  //     doc.fontSize(14).text('Summary:', { underline: true });
+  //     Object.entries(summary).forEach(([key, value]) => {
+  //       if (key !== 'reportType') doc.fontSize(12).text(`${key}: ${value}`);
+  //     });
+  //   }
+
+  //   // Charts
+  //   const { barChart, pieChart } = await this.getCharts(summary);
+  //   if (barChart)
+  //     doc.addPage().image(barChart, { fit: [700, 400], align: 'center', valign: 'center' });
+  //   if (pieChart)
+  //     doc.addPage().image(pieChart, { fit: [700, 400], align: 'center', valign: 'center' });
+
+  //   // Employee list (extended)
+  //   if (summary.reportType !== 'department_analysis') {
+  //     doc.addPage();
+  //     doc.fontSize(14).text('Employee List:', { underline: true });
+
+  //     const headers = [
+  //       'Staff ID',
+  //       'Name',
+  //       'Email',
+  //       'Dept',
+  //       'Position',
+  //       'Branch',
+  //       'Level',
+  //       'Mobile',
+  //       'DOB',
+  //       'Employment Date',
+  //       'Basic Pay',
+  //       'Allowances',
+  //       'Bank',
+  //     ];
+  //     const xPositions = [30, 90, 220, 360, 420, 480, 530, 580, 630, 700, 780, 840, 900];
+  //     const tableTop = doc.y + 15;
+  //     doc.fontSize(8);
+  //     headers.forEach((h, i) => doc.text(h, xPositions[i], tableTop));
+
+  //     let y = tableTop + 15;
+  //     employees.forEach((emp) => {
+  //       const fullName = `${emp.title || ''} ${emp.firstName} ${emp.middleName || ''} ${
+  //         emp.lastName
+  //       }`;
+  //       doc.text(emp.staffId, xPositions[0], y);
+  //       doc.text(fullName.trim(), xPositions[1], y);
+  //       doc.text(emp.email, xPositions[2], y);
+  //       doc.text(emp.department, xPositions[3], y);
+  //       doc.text(emp.position || '', xPositions[4], y);
+  //       doc.text(emp.officeBranch || '', xPositions[5], y);
+  //       doc.text(emp.level || '', xPositions[6], y);
+  //       doc.text(emp.mobile || '', xPositions[7], y);
+  //       doc.text(
+  //         emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString() : '',
+  //         xPositions[8],
+  //         y,
+  //       );
+  //       doc.text(
+  //         emp.employmentDate ? new Date(emp.employmentDate).toLocaleDateString() : '',
+  //         xPositions[9],
+  //         y,
+  //       );
+  //       doc.text(emp.accountInfo?.basicPay?.toFixed(2) || '', xPositions[10], y);
+  //       doc.text(emp.accountInfo?.allowances?.toFixed(2) || '', xPositions[11], y);
+  //       doc.text(emp.accountInfo?.bankName || '', xPositions[12], y);
+  //       y += 15;
+  //     });
+  //   }
+
+  //   doc.end();
+  // }
+
+  // ------------------- PDF EXPORT --------------------
+//  static async exportPDF(
+//   summary: any,
+//   employees: IUser[],
+//   companyData: any,
+//   res: Response,
+//   filename: string,
+// ) {
+//   console.log('Exporting PDF with summary:', summary);
+//   console.log('Exporting PDF with employees count:', employees?.length);
+//   console.log('Exporting PDF with company data:', companyData?.name);
+//   console.log('Exporting PDF with filename:', filename);
+  
+//   res.setHeader('Content-Type', 'application/pdf');
+//   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+//   const doc = new PDFDocument({ margin: 30 });
+
+//   const fontPath = path.resolve(__dirname, '../assets/fonts/Roboto-Regular.ttf');
+//   doc.registerFont('Main', fontPath);
+//   doc.font('Main');
+
+//   doc.pipe(res);
+
+//   // Company logo / name
+//   if (companyData?.branding?.logoUrl) {
+//     try {
+//       const logoResp = await axios.get(companyData.branding.logoUrl, {
+//         responseType: 'arraybuffer',
+//       });
+//       doc.image(Buffer.from(logoResp.data, 'binary'), { width: 100, align: 'center' });
+//     } catch (err) {
+//       console.log('Logo fetch failed:', err);
+//       doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
+//     }
+//   } else {
+//     doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
+//   }
+
+//   doc.moveDown(2);
+//   doc
+//     .fontSize(22)
+//     .text(
+//       summary.reportType === 'department_analysis'
+//         ? 'Department Analysis Report'
+//         : 'Employment Summary Report',
+//       { align: 'center', underline: true },
+//     );
+//   doc.moveDown(1);
+
+//   // Summary table
+//   if (summary.reportType === 'department_analysis') {
+//     doc.fontSize(14).text('Department Data:', { underline: true });
+//     summary.data.forEach((dept: any) => {
+//       doc
+//         .fontSize(12)
+//         .text(
+//           `${dept.department} - Employees: ${dept.totalEmployees}, Avg Salary: ${dept.avgSalary?.toFixed?.(2) || 0}`,
+//         );
+//     });
+//   } else {
+//     doc.fontSize(14).text('Summary:', { underline: true });
+//     Object.entries(summary).forEach(([key, value]) => {
+//       if (key !== 'reportType') doc.fontSize(12).text(`${key}: ${value}`);
+//     });
+//   }
+
+//   // Charts
+//   const { barChart, pieChart } = await this.getCharts(summary);
+//   if (barChart)
+//     doc.addPage().image(barChart, { fit: [700, 400], align: 'center', valign: 'center' });
+//   if (pieChart)
+//     doc.addPage().image(pieChart, { fit: [700, 400], align: 'center', valign: 'center' });
+
+//   // Employee list (extended)
+//   if (summary.reportType !== 'department_analysis') {
+//     doc.addPage();
+//     doc.fontSize(14).text('Employee List:', { underline: true });
+
+//     const headers = [
+//       'EmployeeId',
+//       'Name',
+//       'Email',
+//       'Mobile',
+//       'Alt Phone',
+//       'Dept',
+//       'Position',
+//       'Branch',
+//       'Level',
+//       'State',
+//       'LGA',
+//       'Town',
+//       'Address',
+//       'City',
+//       'DOB',
+//       'ID Type',
+//       'ID Num',
+//       'NIN',
+//       'Emp Date',
+//       'Deps',
+//       'Basic',
+//       'Allow',
+//       'Total',
+//       'Kobo',
+//       'Bank',
+//       'Status',
+//     ];
+    
+//     const colWidth = 65;
+//     const tableTop = doc.y + 15;
+//     doc.fontSize(6.5);
+    
+//     console.log('Drawing headers at y:', tableTop);
+    
+//     // Draw headers
+//     headers.forEach((h, i) => {
+//       doc.text(h, 30 + (i * colWidth), tableTop, { width: colWidth, align: 'left' });
+//     });
+
+//     let y = tableTop + 20;
+//     let rowCount = 0;
+    
+//     console.log('Starting employee rows at y:', y);
+    
+//     employees.forEach((emp, index) => {
+//       try {
+//         console.log(`Processing row ${index}:`, emp?.staffId, emp?.email);
+        
+//         // Safely get values with defaults
+//         const fullName = `${emp?.title || ''} ${emp?.firstName || ''} ${emp?.middleName || ''} ${emp?.lastName || ''}`.trim();
+//         const dob = emp?.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString() : '';
+//         const empDate = emp?.employmentDate ? new Date(emp.employmentDate).toLocaleDateString() : '';
+//         const basicPay = emp?.accountInfo?.basicPay?.toFixed?.(2) || '';
+//         const allowances = emp?.accountInfo?.allowances?.toFixed?.(2) || '';
+        
+//         doc.text(emp?.staffId || '', 30 + (0 * colWidth), y, { width: colWidth });
+//         doc.text(fullName, 30 + (1 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.email || '', 30 + (2 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.mobile || '', 30 + (3 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.alternatePhoneNumber || '', 30 + (4 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.department || '', 30 + (5 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.position || '', 30 + (6 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.officeBranch || '', 30 + (8 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.level || '', 30 + (9 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.stateOfOrigin || '', 30 + (10 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.lga || '', 30 + (11 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.town || '', 30 + (12 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.address || '', 30 + (13 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.city || '', 30 + (14 * colWidth), y, { width: colWidth });
+//         doc.text(dob, 30 + (15 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.meansOfIdentification || '', 30 + (16 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.meansOfIdentificationNumber || '', 30 + (17 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.nationalIdNumber || '', 30 + (18 * colWidth), y, { width: colWidth });
+//         doc.text(empDate, 30 + (19 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.numberOfPrimaryDependants?.toString() || '', 30 + (20 * colWidth), y, { width: colWidth });
+//         doc.text(basicPay, 30 + (21 * colWidth), y, { width: colWidth });
+//         doc.text(allowances, 30 + (22 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.totalMonthlyEarnings?.toFixed?.(2) || '', 30 + (23 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.kobo?.toString() || '', 30 + (24 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.accountInfo?.bankName || '', 30 + (25 * colWidth), y, { width: colWidth });
+//         doc.text(emp?.status || '', 30 + (26 * colWidth), y, { width: colWidth });
+        
+//         y += 20;
+//         rowCount++;
+        
+//         // Add new page if needed
+//         if (y > doc.page.height - 50) {
+//           console.log('Adding new page at row', rowCount);
+//           doc.addPage();
+//           y = 50;
+          
+//           // Redraw headers on new page
+//           headers.forEach((h, i) => {
+//             doc.text(h, 30 + (i * colWidth), y, { width: colWidth, align: 'left' });
+//           });
+//           y += 20;
+//         }
+//       } catch (err) {
+//         console.error(`Error processing employee row ${index}:`, err);
+//         console.error('Employee data:', JSON.stringify(emp, null, 2));
+//         // Continue with next row instead of crashing
+//       }
+//     });
+    
+//     console.log('Finished drawing', rowCount, 'rows');
+//   }
+
+//   console.log('Finalizing PDF...');
+//   doc.end();
+//   console.log('PDF export complete');
+// }
+
+static async exportPDF(
+  summary: any,
+  employees: IUser[],
+  companyData: any,
+  res: Response,
+  filename: string,
+) {
+  
+  try {
+    // Validate inputs first
+    if (!employees || !Array.isArray(employees)) {
+      throw new Error('Invalid employees data: ' + typeof employees);
+    }
+    
+    if (!companyData) {
+      throw new Error('Missing company data');
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     const doc = new PDFDocument({ margin: 30 });
-
+    
+    // Check font file exists
     const fontPath = path.resolve(__dirname, '../assets/fonts/Roboto-Regular.ttf');
-    doc.registerFont('Main', fontPath);
-    doc.font('Main');
+    
+    if (!require('fs').existsSync(fontPath)) {
+      doc.font('Helvetica');
+    } else {
+      doc.registerFont('Main', fontPath);
+      doc.font('Main');
+    }
+
+    // Handle stream errors
+    doc.on('error', (err) => {
+    });
 
     doc.pipe(res);
 
-    // Company logo / name
-    if (companyData?.branding?.logoUrl) {
-      try {
-        const logoResp = await axios.get(companyData.branding.logoUrl, {
-          responseType: 'arraybuffer',
-        });
-        doc.image(Buffer.from(logoResp.data, 'binary'), { width: 100, align: 'center' });
-      } catch {
+    // Header section
+    try {
+      if (companyData?.branding?.logoUrl) {
+        try {
+          const logoResp = await axios.get(companyData.branding.logoUrl, {
+            responseType: 'arraybuffer',
+            timeout: 5000,
+          });
+          doc.image(Buffer.from(logoResp.data, 'binary'), { width: 100, align: 'center' });
+        } catch (logoErr) {
+          doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
+        }
+      } else {
         doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
       }
-    } else {
-      doc.fontSize(18).text(companyData?.name || '', { align: 'center' });
-    }
 
-    doc.moveDown(2);
-    doc
-      .fontSize(22)
-      .text(
-        summary.reportType === 'department_analysis'
+      doc.moveDown(2);
+      doc.fontSize(22).text(
+        summary?.reportType === 'department_analysis'
           ? 'Department Analysis Report'
           : 'Employment Summary Report',
         { align: 'center', underline: true },
       );
-    doc.moveDown(1);
-
-    // Summary table
-    if (summary.reportType === 'department_analysis') {
-      doc.fontSize(14).text('Department Data:', { underline: true });
-      summary.data.forEach((dept: any) => {
-        doc
-          .fontSize(12)
-          .text(
-            `${dept.department} - Employees: ${dept.totalEmployees}, Avg Salary: ${dept.avgSalary.toFixed(
-              2,
-            )}`,
-          );
-      });
-    } else {
-      doc.fontSize(14).text('Summary:', { underline: true });
-      Object.entries(summary).forEach(([key, value]) => {
-        if (key !== 'reportType') doc.fontSize(12).text(`${key}: ${value}`);
-      });
+      doc.moveDown(1);
+    } catch (headerErr) {
     }
 
-    // Charts
-    const { barChart, pieChart } = await this.getCharts(summary);
-    if (barChart)
-      doc.addPage().image(barChart, { fit: [700, 400], align: 'center', valign: 'center' });
-    if (pieChart)
-      doc.addPage().image(pieChart, { fit: [700, 400], align: 'center', valign: 'center' });
+    // Summary section
+    try {
+      if (summary?.reportType === 'department_analysis') {
+        doc.fontSize(14).text('Department Data:', { underline: true });
+        summary.data?.forEach((dept: any) => {
+          const line = `${dept?.department || 'N/A'} - Employees: ${dept?.totalEmployees || 0}, Avg Salary: ${dept?.avgSalary || 0}`;
+          doc.fontSize(12).text(line);
+        });
+      } else {
+        doc.fontSize(14).text('Summary:', { underline: true });
+        Object.entries(summary || {}).forEach(([key, value]) => {
+          if (key !== 'reportType') {
+            doc.fontSize(12).text(`${key}: ${value}`);
+          }
+        });
+      }
+    } catch (summaryErr) {
+    }
 
-    // Employee list (extended)
-    if (summary.reportType !== 'department_analysis') {
+    // Charts section
+    try {
+      const { barChart, pieChart } = await this.getCharts(summary);
+      if (barChart) {
+        doc.addPage();
+        doc.image(barChart, { fit: [700, 400], align: 'center', valign: 'center' });
+      }
+      if (pieChart) {
+        doc.addPage();
+        doc.image(pieChart, { fit: [700, 400], align: 'center', valign: 'center' });
+      }
+    } catch (chartErr) {
+      // Continue without charts
+    }
+
+    // Employee table - THE CRITICAL SECTION
+    if (summary?.reportType !== 'department_analysis' && employees.length > 0) {
+      
       doc.addPage();
       doc.fontSize(14).text('Employee List:', { underline: true });
 
+      // Simplified headers - fewer columns to avoid overflow
       const headers = [
-        'Staff ID',
-        'Name',
-        'Email',
-        'Dept',
-        'Position',
-        'Branch',
-        'Level',
-        'Mobile',
-        'DOB',
-        'Employment Date',
-        'Basic Pay',
-        'Allowances',
-        'Bank',
+        'EmpID', 'Name', 'Email', 'Dept', 'Position', 
+        'Mobile', 'DOB', 'Basic', 'Allow', 'Status'
       ];
-      const xPositions = [30, 90, 220, 360, 420, 480, 530, 580, 630, 700, 780, 840, 900];
-      const tableTop = doc.y + 15;
+      
+      const colWidth = 80;
+      const startX = 30;
+      let y = doc.y + 20;
+      
       doc.fontSize(8);
-      headers.forEach((h, i) => doc.text(h, xPositions[i], tableTop));
-
-      let y = tableTop + 15;
-      employees.forEach((emp) => {
-        const fullName = `${emp.title || ''} ${emp.firstName} ${emp.middleName || ''} ${
-          emp.lastName
-        }`;
-        doc.text(emp.staffId, xPositions[0], y);
-        doc.text(fullName.trim(), xPositions[1], y);
-        doc.text(emp.email, xPositions[2], y);
-        doc.text(emp.department, xPositions[3], y);
-        doc.text(emp.position || '', xPositions[4], y);
-        doc.text(emp.officeBranch || '', xPositions[5], y);
-        doc.text(emp.level || '', xPositions[6], y);
-        doc.text(emp.mobile || '', xPositions[7], y);
-        doc.text(
-          emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString() : '',
-          xPositions[8],
-          y,
-        );
-        doc.text(
-          emp.employmentDate ? new Date(emp.employmentDate).toLocaleDateString() : '',
-          xPositions[9],
-          y,
-        );
-        doc.text(emp.accountInfo?.basicPay?.toFixed(2) || '', xPositions[10], y);
-        doc.text(emp.accountInfo?.allowances?.toFixed(2) || '', xPositions[11], y);
-        doc.text(emp.accountInfo?.bankName || '', xPositions[12], y);
-        y += 15;
+      
+      // Draw headers
+      headers.forEach((h, i) => {
+        doc.text(h, startX + (i * colWidth), y);
       });
+      
+      y += 20;
+
+      // Process employees in batches with error isolation
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < employees.length; i++) {
+        const emp = employees[i];
+        
+        // Strict validation
+        if (!emp || typeof emp !== 'object') {
+          errorCount++;
+          continue;
+        }
+
+        try {
+          // Safe value extraction
+          const safeString = (val: any) => String(val || '').substring(0, 30);
+          const safeNumber = (val: any) => {
+            const n = Number(val);
+            return isNaN(n) ? '' : n.toFixed(2);
+          };
+          const safeDate = (val: any) => {
+            if (!val) return '';
+            try {
+              return new Date(val).toLocaleDateString();
+            } catch {
+              return '';
+            }
+          };
+
+          const fullName = safeString(`${emp.title || ''} ${emp.firstName || ''} ${emp.lastName || ''}`.trim());
+
+          const row = [
+            safeString(emp.staffId),
+            fullName,
+            safeString(emp.email),
+            safeString(emp.department),
+            safeString(emp.position),
+            safeString(emp.mobile),
+            safeDate(emp.dateOfBirth),
+            safeNumber(emp.accountInfo?.basicPay),
+            safeNumber(emp.accountInfo?.allowances),
+            safeString(emp.status),
+          ];
+
+          // Draw row
+          row.forEach((text, colIdx) => {
+            doc.text(text, startX + (colIdx * colWidth), y);
+          });
+
+          y += 15;
+          successCount++;
+
+          // Page break check
+          if (y > 750) {
+            doc.addPage();
+            y = 50;
+            // Redraw headers
+            headers.forEach((h, i) => {
+              doc.text(h, startX + (i * colWidth), y);
+            });
+            y += 20;
+          }
+
+        } catch (rowErr) {
+          errorCount++;
+          // Continue to next employee
+        }
+      }
+      
     }
 
     doc.end();
+
+  } catch (error) {
+
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to generate report', 
+      });
+    }
   }
+}
+
+
+  // // ------------------- EXCEL EXPORT --------------------
+  // static async exportExcel(summary: any, employees: IUser[], res: Response, filename: string) {
+  //   res.setHeader(
+  //     'Content-Type',
+  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  //   );
+  //   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+  //   const workbook = new ExcelJS.Workbook();
+
+  //   // Summary / Data sheet
+  //   if (summary.reportType === 'department_analysis') {
+  //     const deptSheet = workbook.addWorksheet('Department Analysis');
+  //     deptSheet.addRow(['Department', 'Total Employees', 'Average Salary']);
+  //     summary.data.forEach((d: any) =>
+  //       deptSheet.addRow([d.department, d.totalEmployees, d.avgSalary]),
+  //     );
+  //   } else {
+  //     const summarySheet = workbook.addWorksheet('Summary');
+  //     summarySheet.addRow(['Metric', 'Value']);
+  //     for (const [key, value] of Object.entries(summary)) {
+  //       if (key !== 'reportType') summarySheet.addRow([key, value]);
+  //     }
+  //   }
+
+  //   if (summary.reportType !== 'department_analysis') {
+  //     const empSheet = workbook.addWorksheet('Employees');
+  //     empSheet.columns = [
+  //       { header: 'Staff ID', key: 'staffId', width: 12 },
+  //       { header: 'Title', key: 'title', width: 8 },
+  //       { header: 'First Name', key: 'firstName', width: 15 },
+  //       { header: 'Middle Name', key: 'middleName', width: 15 },
+  //       { header: 'Last Name', key: 'lastName', width: 15 },
+  //       { header: 'Gender', key: 'gender', width: 10 },
+  //       { header: 'DOB', key: 'dateOfBirth', width: 12 },
+  //       { header: 'Email', key: 'email', width: 25 },
+  //       { header: 'Mobile', key: 'mobile', width: 15 },
+  //       { header: 'Department', key: 'department', width: 15 },
+  //       { header: 'Position', key: 'position', width: 20 },
+  //       { header: 'Branch', key: 'officeBranch', width: 15 },
+  //       { header: 'Level', key: 'level', width: 10 },
+  //       { header: 'Employment Date', key: 'employmentDate', width: 15 },
+  //       { header: 'Basic Pay', key: 'basicPay', width: 12 },
+  //       { header: 'Allowances', key: 'allowances', width: 12 },
+  //       { header: 'Bank Name', key: 'bankName', width: 20 },
+  //       { header: 'Account Number', key: 'bankAccountNumber', width: 20 },
+  //       { header: 'Tax Number', key: 'taxNumber', width: 20 },
+  //       { header: 'Pension Company', key: 'pensionCompany', width: 20 },
+  //       { header: 'Pension Number', key: 'pensionNumber', width: 20 },
+  //       { header: 'Coop Monthly Contribution', key: 'coopMonthly', width: 20 },
+  //       { header: 'Coop Total', key: 'coopTotal', width: 20 },
+  //       { header: 'Status', key: 'status', width: 15 },
+  //     ];
+
+  //     employees.forEach((emp) => {
+  //       empSheet.addRow({
+  //         staffId: emp.staffId,
+  //         title: emp.title,
+  //         firstName: emp.firstName,
+  //         middleName: emp.middleName,
+  //         lastName: emp.lastName,
+  //         gender: emp.gender,
+  //         dateOfBirth: emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString() : '',
+  //         email: emp.email,
+  //         mobile: emp.mobile,
+  //         department: emp.department,
+  //         position: emp.position,
+  //         officeBranch: emp.officeBranch,
+  //         level: emp.level,
+  //         employmentDate: emp.employmentDate
+  //           ? new Date(emp.employmentDate).toLocaleDateString()
+  //           : '',
+  //         basicPay: emp.accountInfo?.basicPay,
+  //         allowances: emp.accountInfo?.allowances,
+  //         bankName: emp.accountInfo?.bankName,
+  //         bankAccountNumber: emp.accountInfo?.bankAccountNumber,
+  //         taxNumber: emp.accountInfo?.taxNumber,
+  //         pensionCompany: emp.accountInfo?.pensionCompany,
+  //         pensionNumber: emp.accountInfo?.pensionNumber,
+  //         coopMonthly: emp.cooperative?.monthlyContribution,
+  //         coopTotal: emp.cooperative?.totalContributed,
+  //         status: emp.status,
+  //       });
+  //     });
+  //   }
+
+  //   // Charts sheet
+  //   const { barChart, pieChart } = await this.getCharts(summary);
+  //   if (barChart || pieChart) {
+  //     const chartSheet = workbook.addWorksheet('Charts');
+  //     if (barChart) {
+  //       const barImageId = workbook.addImage({
+  //         buffer: Buffer.from(barChart),
+  //         extension: 'png',
+  //       });
+  //       chartSheet.addImage(barImageId, 'A1:J20');
+  //     }
+  //     if (pieChart) {
+  //       const pieImageId = workbook.addImage({ buffer: Buffer.from(pieChart), extension: 'png' });
+  //       chartSheet.addImage(pieImageId, 'A22:J42');
+  //     }
+  //   }
+
+  //   // await workbook.xlsx.write(res);
+  //   // res.end();
+  //   const buffer = await workbook.xlsx.writeBuffer();
+
+  //   res.setHeader(
+  //     'Content-Type',
+  //     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  //   );
+  //   res.setHeader(
+  //     'Content-Disposition',
+  //     `attachment; filename="${filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`}"`,
+  //   );
+
+  //   res.send(Buffer.from(buffer));
+  // }
+
 
   // ------------------- EXCEL EXPORT --------------------
   static async exportExcel(summary: any, employees: IUser[], res: Response, filename: string) {
@@ -280,29 +802,42 @@ export class ExportService {
     if (summary.reportType !== 'department_analysis') {
       const empSheet = workbook.addWorksheet('Employees');
       empSheet.columns = [
-        { header: 'Staff ID', key: 'staffId', width: 12 },
+        { header: 'EmployeeId', key: 'staffId', width: 12 },
         { header: 'Title', key: 'title', width: 8 },
         { header: 'First Name', key: 'firstName', width: 15 },
         { header: 'Middle Name', key: 'middleName', width: 15 },
         { header: 'Last Name', key: 'lastName', width: 15 },
         { header: 'Gender', key: 'gender', width: 10 },
         { header: 'DOB', key: 'dateOfBirth', width: 12 },
+        { header: 'State of Origin', key: 'stateOfOrigin', width: 15 },
+        { header: 'LGA', key: 'lga', width: 15 },
+        { header: 'Town', key: 'town', width: 15 },
+        { header: 'Address', key: 'address', width: 25 },
+        { header: 'City', key: 'city', width: 15 },
         { header: 'Email', key: 'email', width: 25 },
         { header: 'Mobile', key: 'mobile', width: 15 },
+        { header: 'Alternate Phone', key: 'alternatePhoneNumber', width: 15 },
+        { header: 'Means of ID', key: 'meansOfIdentification', width: 20 },
+        { header: 'ID Number', key: 'meansOfIdentificationNumber', width: 20 },
+        { header: 'State of Issuance', key: 'stateOfIssuance', width: 18 },
+        { header: 'National ID (NIN)', key: 'nationalIdNumber', width: 18 },
         { header: 'Department', key: 'department', width: 15 },
         { header: 'Position', key: 'position', width: 20 },
         { header: 'Branch', key: 'officeBranch', width: 15 },
         { header: 'Level', key: 'level', width: 10 },
         { header: 'Employment Date', key: 'employmentDate', width: 15 },
+        { header: 'Number of Dependants', key: 'numberOfPrimaryDependants', width: 18 },
         { header: 'Basic Pay', key: 'basicPay', width: 12 },
         { header: 'Allowances', key: 'allowances', width: 12 },
+        { header: 'Total Monthly Earnings', key: 'totalMonthlyEarnings', width: 20 },
+        { header: 'Kobo', key: 'kobo', width: 12 },
         { header: 'Bank Name', key: 'bankName', width: 20 },
         { header: 'Account Number', key: 'bankAccountNumber', width: 20 },
         { header: 'Tax Number', key: 'taxNumber', width: 20 },
         { header: 'Pension Company', key: 'pensionCompany', width: 20 },
         { header: 'Pension Number', key: 'pensionNumber', width: 20 },
-        { header: 'Coop Monthly Contribution', key: 'coopMonthly', width: 20 },
-        { header: 'Coop Total', key: 'coopTotal', width: 20 },
+        { header: 'Coop Monthly Contribution', key: 'coopMonthly', width: 22 },
+        { header: 'Coop Total Contributed', key: 'coopTotal', width: 20 },
         { header: 'Status', key: 'status', width: 15 },
       ];
 
@@ -315,8 +850,18 @@ export class ExportService {
           lastName: emp.lastName,
           gender: emp.gender,
           dateOfBirth: emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString() : '',
+          stateOfOrigin: emp.stateOfOrigin,
+          lga: emp.lga,
+          town: emp.town,
+          address: emp.address,
+          city: emp.city,
           email: emp.email,
           mobile: emp.mobile,
+          alternatePhoneNumber: emp.alternatePhoneNumber,
+          meansOfIdentification: emp.meansOfIdentification,
+          meansOfIdentificationNumber: emp.meansOfIdentificationNumber,
+          stateOfIssuance: emp.stateOfIssuance,
+          nationalIdNumber: emp.nationalIdNumber,
           department: emp.department,
           position: emp.position,
           officeBranch: emp.officeBranch,
@@ -324,8 +869,11 @@ export class ExportService {
           employmentDate: emp.employmentDate
             ? new Date(emp.employmentDate).toLocaleDateString()
             : '',
+          numberOfPrimaryDependants: emp.numberOfPrimaryDependants,
           basicPay: emp.accountInfo?.basicPay,
           allowances: emp.accountInfo?.allowances,
+          totalMonthlyEarnings: emp.totalMonthlyEarnings,
+          kobo: emp.kobo,
           bankName: emp.accountInfo?.bankName,
           bankAccountNumber: emp.accountInfo?.bankAccountNumber,
           taxNumber: emp.accountInfo?.taxNumber,
@@ -355,8 +903,6 @@ export class ExportService {
       }
     }
 
-    // await workbook.xlsx.write(res);
-    // res.end();
     const buffer = await workbook.xlsx.writeBuffer();
 
     res.setHeader(

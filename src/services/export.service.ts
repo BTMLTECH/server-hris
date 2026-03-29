@@ -478,7 +478,8 @@ static async exportPDF(
     }
 
     // Handle stream errors
-    doc.on('error', (err) => {
+    doc.on('error', (_:any) => {
+
     });
 
     doc.pipe(res);

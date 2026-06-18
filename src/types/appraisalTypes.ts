@@ -33,10 +33,10 @@ export interface UpdateAppraisalDto {
   revisionReason?: string;
   objectives?: Partial<IAppraisalObjective>[];
   hrAdjustments?: {
-    innovation?: boolean;
-    commendation?: boolean;
-    query?: boolean;
-    majorError?: boolean;
+    innovation?: number;
+    commendation?: number;
+    query?: number;
+    majorError?: number;
   };
 }
 

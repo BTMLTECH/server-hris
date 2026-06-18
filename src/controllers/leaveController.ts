@@ -1202,12 +1202,12 @@ export const createLeaveRequest = asyncHandler(
       lastName: reliever.lastName,
     }));
 
-    // ⭐⭐⭐ FIXED REVIEW LEVEL LOGIC ⭐⭐⭐
+
     const isTeamLead = userRole === 'teamlead';
 
     reviewLevels = isTeamLead
-      ? [...relieversWithNames.map(() => 'reliever'), 'hr', 'md'] // TEAMLEAD LEAVE
-      : [...relieversWithNames.map(() => 'reliever'), 'teamlead', 'hr', 'md']; // EMPLOYEE LEAVE
+      ? [...relieversWithNames.map(() => 'reliever'), 'hr', 'md']
+      : [...relieversWithNames.map(() => 'reliever'), 'teamlead', 'hr', 'md']; 
 
     // Notify relievers
     await Promise.all(

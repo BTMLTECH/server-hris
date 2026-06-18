@@ -33,7 +33,7 @@ export interface IAppraisalRequest extends Document {
   dueDate: Date;
   typeIdentify: "appraisal";
   objectives: IAppraisalObjective[];
-  status?: "pending" | "sent_to_employee" | "approved" | "rejected" | "submitted" | "needs_revision" | "update";
+  status?: "pending" | "sent_to_employee" | "approved" | "rejected" | "submitted" | "needs_revision" | "awaiting_hr_review" | "update";
   reviewLevel: "teamlead" | "hr";
   reviewTrail: IReviewTrail[];
   totalScore: {
@@ -43,10 +43,10 @@ export interface IAppraisalRequest extends Document {
   };
   revisionReason?: string;
   hrAdjustments: {
-    innovation: boolean;
-    commendation: boolean;
-    query: boolean;
-    majorError: boolean;
+    innovation: number;
+    commendation: number;
+    query: number;
+    majorError: number;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -86,12 +86,12 @@ const AppraisalRequestSchema = new Schema<IAppraisalRequest>(
     objectives: [AppraisalObjectiveSchema],
     status: {
       type: String,
-      enum: ["pending", "sent_to_employee", "approved", "rejected", "submitted", "needs_revision", "update"],
+      enum: ["pending", "sent_to_employee", "approved", "rejected", "submitted", "needs_revision", "awaiting_hr_review", "update"],
       default: "pending",
     },
     reviewLevel: {
       type: String,
-      enum: ["teamlead", "hr", "md"],
+      enum: ["teamlead", "hr"],
       default: "teamlead",
     },
     reviewTrail: [
@@ -111,10 +111,10 @@ const AppraisalRequestSchema = new Schema<IAppraisalRequest>(
     },
     revisionReason: { type: String, default: "" },
     hrAdjustments: {
-      innovation: { type: Boolean, default: false },
-      commendation: { type: Boolean, default: false },
-      query: { type: Boolean, default: false },
-      majorError: { type: Boolean, default: false },
+      innovation: { type: Number, default: 0 },
+      commendation: { type: Number, default: 0 },
+      query: { type: Number, default: 0 },
+      majorError: { type: Number, default: 0 },
     },
   },
   { timestamps: true }

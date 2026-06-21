@@ -15,10 +15,13 @@ import { emitToUser } from '../utils/socketEmitter';
 
 export const createAppraisalRequest = async (req: any, res: any, next: NextFunction) => {
   try {
-    const { title, teamLeadId, employeeId, period, dueDate, objectives } = req.body;
+    const { title, teamLeadId, employeeId, employeeIds, period, objectives } = req.body;
 
-    if (!title || !teamLeadId || !employeeId || !period || !dueDate || !objectives || objectives.length === 0) {
-      return next(new ErrorResponse('All fields including employeeId and objectives are required', 400));
+    // Support both single employeeId and multiple employeeIds
+    const targetEmployeeIds = employeeIds || (employeeId ? [employeeId] : []);
+
+    if (!title || !teamLeadId || targetEmployeeIds.length === 0 || !period || !objectives || objectives.length === 0) {
+      return next(new ErrorResponse('All fields including employeeId/employeeIds and objectives are required', 400));
     }
 
     const totalScore = objectives.reduce(
@@ -34,48 +37,61 @@ export const createAppraisalRequest = async (req: any, res: any, next: NextFunct
       return next(new ErrorResponse('Team lead or department not found', 404));
     }
 
-    const employee = await User.findById(employeeId);
-    if (!employee || employee.role !== 'employee') {
-      return next(new ErrorResponse('Employee not found or is not an employee', 404));
+    // Create appraisals for all employees
+    const createdAppraisals = [];
+    const failedEmployees = [];
+
+    for (const empId of targetEmployeeIds) {
+      try {
+        const employee = await User.findById(empId);
+        if (!employee || employee.role !== 'employee') {
+          failedEmployees.push(empId);
+          continue;
+        }
+
+        const appraisal = await AppraisalRequest.create({
+          title,
+          user: employee._id,
+          teamLeadId,
+          department: employee.department,
+          period,
+          objectives: objectives.map((obj: any) => ({
+            ...obj,
+            employeeScore: 0,
+            teamLeadScore: 0,
+            finalScore: 0,
+            employeeComments: '',
+            teamLeadComments: '',
+            evidence: '',
+          })),
+          totalScore: { employee: 0, teamLead: 0, final: 0 },
+          status: 'pending',
+          reviewLevel: 'teamlead',
+          reviewTrail: [],
+          typeIdentify: 'appraisal',
+        });
+
+        await sendNotification({
+          user: employee,
+          type: 'NEW_APPRAISAL',
+          title: 'New Appraisal Assigned',
+          message: `A new appraisal titled "${title}" has been assigned to you. Please review and respond.`,
+          emailSubject: 'New Appraisal Assigned',
+          emailTemplate: 'appraisal-assigned.ejs',
+          emailData: {
+            name: employee.firstName,
+            title,
+            period,
+            // dueDate,
+          },
+        });
+
+        createdAppraisals.push(appraisal);
+      } catch (error: any) {
+        failedEmployees.push(empId);
+        // console.error(`Failed to create appraisal for employee ${empId}:`, error.message);
+      }
     }
-
-    const appraisal = await AppraisalRequest.create({
-      title,
-      user: employee._id,
-      teamLeadId,
-      department: employee.department,
-      period,
-      dueDate,
-      objectives: objectives.map((obj: any) => ({
-        ...obj,
-        employeeScore: 0,
-        teamLeadScore: 0,
-        finalScore: 0,
-        employeeComments: '',
-        teamLeadComments: '',
-        evidence: '',
-      })),
-      totalScore: { employee: 0, teamLead: 0, final: 0 },
-      status: 'pending',
-      reviewLevel: 'teamlead',
-      reviewTrail: [],
-      typeIdentify: 'appraisal',
-    });
-
-    await sendNotification({
-      user: employee,
-      type: 'NEW_APPRAISAL',
-      title: 'New Appraisal Assigned',
-      message: `A new appraisal titled "${title}" has been assigned to you. Please review and respond.`,
-      emailSubject: 'New Appraisal Assigned',
-      emailTemplate: 'appraisal-assigned.ejs',
-      emailData: {
-        name: employee.firstName,
-        title,
-        period,
-        dueDate,
-      },
-    });
 
     await logAudit({
       userId: req.user?.id,
@@ -85,10 +101,16 @@ export const createAppraisalRequest = async (req: any, res: any, next: NextFunct
       userAgent: req.get('user-agent'),
     });
 
+    // If no appraisals were created, return error
+    if (createdAppraisals.length === 0) {
+      return next(new ErrorResponse('Failed to create appraisals for the selected employees', 400));
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Appraisal created successfully',
-      data: appraisal,
+      message: `Appraisal created successfully for ${createdAppraisals.length} employee(s)${failedEmployees.length > 0 ? ` (${failedEmployees.length} failed)` : ''}`,
+      data: createdAppraisals.length === 1 ? createdAppraisals[0] : createdAppraisals,
+      failedEmployees: failedEmployees.length > 0 ? failedEmployees : undefined,
     });
   } catch (error: any) {
     next(new ErrorResponse(error.message, 500));
@@ -146,7 +168,7 @@ export const updateAppraisalRequest = asyncHandler(
       // --- Update other fields ---
       if (updateData.title) appraisal.title = updateData.title;
       if (updateData.period) appraisal.period = updateData.period;
-      if (updateData.dueDate) appraisal.dueDate = updateData.dueDate;
+      // if (updateData.dueDate) appraisal.dueDate = updateData.dueDate;
 
       const allowedStatuses: IAppraisalRequest['status'][] = [
         'pending',
@@ -176,19 +198,22 @@ export const updateAppraisalRequest = asyncHandler(
       if (role === 'teamlead') {
         appraisal.totalScore.final = appraisal.totalScore.teamLead;
       } else if (role === 'hr') {
+        // Only update final score if HR is explicitly providing hrAdjustments
+        if (updateData.hrAdjustments) {
+          appraisal.hrAdjustments = {
+            innovation: updateData.hrAdjustments?.innovation || 0,
+            commendation: updateData.hrAdjustments?.commendation || 0,
+            query: updateData.hrAdjustments?.query || 0,
+            majorError: updateData.hrAdjustments?.majorError || 0,
+          };
 
-        appraisal.hrAdjustments = {
-          innovation: updateData.hrAdjustments?.innovation || 0,
-          commendation: updateData.hrAdjustments?.commendation || 0,
-          query: updateData.hrAdjustments?.query || 0,
-          majorError: updateData.hrAdjustments?.majorError || 0,
-        };
-
-        let finalTotal = appraisal.totalScore.teamLead;
-        Object.keys(appraisal.hrAdjustments).forEach((key) => {
-          finalTotal += appraisal.hrAdjustments![key as keyof typeof appraisal.hrAdjustments];
-        });
-        appraisal.totalScore.final = finalTotal;
+          let finalTotal = appraisal.totalScore.teamLead;
+          Object.keys(appraisal.hrAdjustments).forEach((key) => {
+            finalTotal += appraisal.hrAdjustments![key as keyof typeof appraisal.hrAdjustments];
+          });
+          appraisal.totalScore.final = finalTotal;
+        }
+        // If no hrAdjustments provided, keep the existing final score
       } else {
         appraisal.totalScore.final = appraisal.totalScore.final || 0;
       }
@@ -275,14 +300,14 @@ export const getAppraisalActivity = asyncHandler(
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
       ]);
       
-      console.log('Sort query applied - createdAt: -1');
-      console.log('Query filter:', JSON.stringify(query));
-      console.log('Total matching documents:', total);
-      console.log('Returned appraisals count:', appraisals.length);
-      if (appraisals.length > 0) {
-        console.log('First appraisal createdAt:', appraisals[0].createdAt);
-        console.log('Last appraisal createdAt:', appraisals[appraisals.length - 1].createdAt);
-      }
+      // console.log('Sort query applied - createdAt: -1');
+      // console.log('Query filter:', JSON.stringify(query));
+      // console.log('Total matching documents:', total);
+      // console.log('Returned appraisals count:', appraisals.length);
+      // if (appraisals.length > 0) {
+      //   console.log('First appraisal createdAt:', appraisals[0].createdAt);
+      //   console.log('Last appraisal createdAt:', appraisals[appraisals.length - 1].createdAt);
+      // }
       
       // Project only needed user fields
       const formattedAppraisals = appraisals.map((appraisal: any) => ({
@@ -351,7 +376,7 @@ export const approveAppraisalRequest = asyncHandler(
         return next(new ErrorResponse('Not authorized to review this appraisal', 403));
       }
 
-      // Process HR adjustments if HR is approving
+      // Process HR adjustments only if HR is explicitly providing them
       if (reviewer.role === 'hr' && updateData?.hrAdjustments) {
         appraisal.hrAdjustments = {
           innovation: updateData.hrAdjustments?.innovation || 0,
@@ -360,16 +385,14 @@ export const approveAppraisalRequest = asyncHandler(
           majorError: updateData.hrAdjustments?.majorError || 0,
         };
 
-        // Recalculate final score with adjustments
+        // Recalculate final score ONLY if adjustments are provided
         let finalTotal = appraisal.totalScore.teamLead;
-        if (appraisal.hrAdjustments) {
-          Object.keys(appraisal.hrAdjustments).forEach((key) => {
-            const value = appraisal.hrAdjustments?.[key as keyof typeof appraisal.hrAdjustments];
-            if (typeof value === 'number') {
-              finalTotal += value;
-            }
-          });
-        }
+        Object.keys(appraisal.hrAdjustments).forEach((key) => {
+          const value = appraisal.hrAdjustments?.[key as keyof typeof appraisal.hrAdjustments];
+          if (typeof value === 'number') {
+            finalTotal += value;
+          }
+        });
         appraisal.totalScore.final = finalTotal;
       }
 
@@ -557,6 +580,65 @@ export const getEmployeesByTeamLeadDepartment = asyncHandler(
         success: true,
         message: 'Employees in your department',
         data: { data: employees },
+      });
+    } catch (error: any) {
+      next(new ErrorResponse(error.message, 500));
+    }
+  },
+);
+
+export const deleteAppraisal = asyncHandler(
+  async (
+    req: TypedRequest<{ id?: string }, {}, {}>,
+    res: TypedResponse<any>,
+    next: NextFunction,
+  ) => {
+    try {
+      const appraisalId = req.params.id;
+      const user = req.user;
+
+      const appraisal = await AppraisalRequest.findById(appraisalId);
+      if (!appraisal) {
+        return next(new ErrorResponse('Appraisal not found', 404));
+      }
+
+      // Check if HR has already approved
+      const hrApproved = appraisal.reviewTrail.some(
+        (review) => review.role === 'hr' && review.action === 'approved'
+      );
+
+      if (hrApproved) {
+        return next(
+          new ErrorResponse(
+            'Cannot delete appraisal after HR approval',
+            403
+          )
+        );
+      }
+
+      // Only teamlead or the employee who created it can delete
+      if (
+        user?.role !== 'teamlead' &&
+        user?.role !== 'admin' &&
+        appraisal.teamLeadId.toString() !== user?._id?.toString()
+      ) {
+        return next(new ErrorResponse('Not authorized to delete this appraisal', 403));
+      }
+
+      await AppraisalRequest.findByIdAndDelete(appraisalId);
+
+      await logAudit({
+        userId: user?._id,
+        action: 'DELETE_APPRAISAL',
+        status: 'SUCCESS',
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Appraisal deleted successfully',
+        data: null,
       });
     } catch (error: any) {
       next(new ErrorResponse(error.message, 500));

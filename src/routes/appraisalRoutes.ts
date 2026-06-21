@@ -6,6 +6,7 @@ import {
   rejectAppraisalRequest,
   getAppraisalApprovalQueue,
   getAppraisalActivity,
+  deleteAppraisal,
   // getEmployeesByTeamLeadDepartment,
 } from "../controllers/AppraisalController";
 import {
@@ -13,6 +14,7 @@ import {
   allowEveryone,
   // allowTeamLead,
   allowTeamLeadHRManager,
+  
 } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
 
@@ -21,6 +23,7 @@ const router = express.Router();
 // Create and update appraisal requests
 router.post("/request", protect, tenantAuth, allowEveryone, createAppraisalRequest);
 router.patch("/update/:id", protect, tenantAuth, allowEveryone, updateAppraisalRequest);
+router.delete("/:id", protect, tenantAuth, allowTeamLeadHRManager, deleteAppraisal);
 
 // Approve / reject appraisal requests
 router.post("/:id/approve", protect, tenantAuth, allowTeamLeadHRManager, approveAppraisalRequest);

@@ -30,7 +30,6 @@ export interface IAppraisalRequest extends Document {
   teamLeadId: mongoose.Types.ObjectId;
   department: string;
   period: string;
-  dueDate: Date;
   typeIdentify: "appraisal";
   objectives: IAppraisalObjective[];
   status?: "pending" | "sent_to_employee" | "approved" | "rejected" | "submitted" | "needs_revision" | "awaiting_hr_review" | "update";
@@ -81,7 +80,6 @@ const AppraisalRequestSchema = new Schema<IAppraisalRequest>(
     teamLeadId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     department: { type: String, required: true },
     period: { type: String, required: true },
-    dueDate: { type: Date, required: true },
     typeIdentify: { type: String, enum: ["appraisal"], required: true },
     objectives: [AppraisalObjectiveSchema],
     status: {

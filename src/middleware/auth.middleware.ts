@@ -87,7 +87,7 @@ export const allowAdminOnly = authorizeRoles('admin');
 
 export const allowAdminAndHR = authorizeRoles('admin', 'hr');
 
-export const allowTeamLeadHRManager = authorizeRoles('teamlead', 'hr', 'md');
+export const allowTeamLeadHRManager = authorizeRoles('teamlead', 'hr', 'md', "admin");
 
 export const allowTeamLead = authorizeRoles('teamlead');
 

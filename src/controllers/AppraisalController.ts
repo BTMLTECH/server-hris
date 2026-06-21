@@ -617,13 +617,13 @@ export const deleteAppraisal = asyncHandler(
       }
 
       // Only teamlead or the employee who created it can delete
-      if (
-        user?.role !== 'teamlead' &&
-        user?.role !== 'admin' &&
-        appraisal.teamLeadId.toString() !== user?._id?.toString()
-      ) {
-        return next(new ErrorResponse('Not authorized to delete this appraisal', 403));
-      }
+      // if (
+      //   user?.role !== 'teamlead' &&
+      //   user?.role !== 'admin' &&
+      //   appraisal.teamLeadId.toString() !== user?._id?.toString()
+      // ) {
+      //   return next(new ErrorResponse('Not authorized to delete this appraisal', 403));
+      // }
 
       await AppraisalRequest.findByIdAndDelete(appraisalId);
 

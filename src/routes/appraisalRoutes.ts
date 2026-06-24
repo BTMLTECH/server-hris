@@ -12,9 +12,7 @@ import {
 import {
   protect,
   allowEveryone,
-  // allowTeamLead,
   allowTeamLeadHRManager,
-  
 } from "../middleware/auth.middleware";
 import { tenantAuth } from "../middleware/tenantAuth";
 
@@ -24,10 +22,11 @@ const router = express.Router();
 router.post("/request", protect, tenantAuth, allowEveryone, createAppraisalRequest);
 router.patch("/update/:id", protect, tenantAuth, allowEveryone, updateAppraisalRequest);
 router.delete("/:id", protect, tenantAuth, allowTeamLeadHRManager, deleteAppraisal);
+// router.delete("/:id", protect, tenantAuth, allowEveryone, deleteAppraisal);
 
 // Approve / reject appraisal requests
-router.post("/:id/approve", protect, tenantAuth, allowTeamLeadHRManager, approveAppraisalRequest);
-router.post("/:id/reject", protect, tenantAuth, allowTeamLeadHRManager, rejectAppraisalRequest);
+router.post("/:id/approve", protect, tenantAuth, allowEveryone, approveAppraisalRequest);
+router.post("/:id/reject", protect, tenantAuth, allowEveryone, rejectAppraisalRequest);
 
 // Queues and activity
 router.get("/appraisal-queue", protect, tenantAuth, allowEveryone, getAppraisalApprovalQueue);

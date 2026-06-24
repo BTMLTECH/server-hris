@@ -22,6 +22,25 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+// Cache control middleware for frontend assets
+app.use((req, res, next) => {
+  // No cache for HTML files (always fetch fresh)
+  if (req.path.endsWith('.html') || req.path === '/') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  // Long cache for hashed assets (they change on every build)
+  else if (/\.[a-f0-9]{8}\.(js|css|woff2?|ttf|eot)$/i.test(req.path)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  // Default cache policy for other static assets
+  else if (/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/i.test(req.path)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+  next();
+});
+
 const allowedOrigins = [
 // 'http://localhost:8082',
   process.env.FRONTEND_URL!,
